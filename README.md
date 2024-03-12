@@ -27,8 +27,6 @@ You can find all scripted/human demo for simulated environments [here](https://d
 
     conda create -n aloha python=3.8.10
     conda activate aloha
-    pip install torchvision
-    pip install torch
     pip install pyquaternion
     pip install pyyaml
     pip install rospkg
@@ -42,6 +40,8 @@ You can find all scripted/human demo for simulated environments [here](https://d
     pip install h5py
     pip install ipython
     cd act/detr && pip install -e .
+    pip install torchvision
+    pip install torch
 
 - also need to install https://github.com/ARISE-Initiative/robomimic/tree/r2d2 (note the r2d2 branch) for Diffusion Policy by `pip install -e .`
 
@@ -62,7 +62,7 @@ To generated 50 episodes of scripted data, run:
 To can add the flag ``--onscreen_render`` to see real-time rendering.
 To visualize the simulated episodes after it is collected, run
 
-    python3 visualize_episodes.py --dataset_dir <data save dir> --episode_idx 0
+    python3 visualize_episodes.py --dataset_dir /root/autodl-tmp/dataset --episode_idx 0
 
 Note: to visualize data from the mobile-aloha hardware, use the visualize_episodes.py from https://github.com/MarkFzp/mobile-aloha
 
