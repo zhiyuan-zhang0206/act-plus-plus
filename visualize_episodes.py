@@ -13,6 +13,31 @@ e = IPython.embed
 JOINT_NAMES = ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"]
 STATE_NAMES = JOINT_NAMES + ["gripper"]
 
+import os
+import glob
+import zipfile
+
+def zip_mp4_files(directory):
+    # Path to the zip file we want to create, under the input directory
+    zip_path = os.path.join(directory, 'all_videos.zip')
+    
+    # Create a zip file
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        # Change the current directory to the input directory to ensure file names
+        # in the zip archive are relative to the input directory
+        os.chdir(directory)
+        
+        # Loop through all .mp4 files in the directory
+        for file in glob.glob('*.mp4'):
+            # Add file to the zip file
+            zipf.write(file)
+    
+    print(f'All .mp4 files have been zipped into {zip_path}')
+
+# Example usage:
+# zip_mp4_files('/path/to/directory')
+
+
 def load_hdf5(dataset_dir, dataset_name):
     dataset_path = os.path.join(dataset_dir, dataset_name + '.hdf5')
     if not os.path.isfile(dataset_path):
@@ -30,17 +55,32 @@ def load_hdf5(dataset_dir, dataset_name):
 
     return qpos, qvel, action, image_dict
 
+def save_hdf5_video(path):
+    qpos, qvel, action, image_dict = load_hdf5(path)
+    save_videos(image_dict, DT, video_path=os.path.join(path.replace('.hdf5') + '.mp4'))
+
 def main(args):
     dataset_dir = args['dataset_dir']
     episode_idx = args['episode_idx']
     ismirror = args['ismirror']
     if ismirror:
-        dataset_name = f'mirror_episode_{episode_idx}'
+        data_name = f'mirror_episode_{episode_idx}'
     else:
-        dataset_name = f'episode_{episode_idx}'
+        data_name = f'episode_{episode_idx}'
 
-    qpos, qvel, action, image_dict = load_hdf5(dataset_dir, dataset_name)
-    save_videos(image_dict, DT, video_path=os.path.join(dataset_dir, dataset_name + '_video.mp4'))
+    if episode_idx is not None:
+        save_hdf5_video(os.path.join(dataset_dir, data_name))
+    else:
+        print(f'Visualizing all episodes in {dataset_dir}')
+        for episode_idx in range(100):
+            data_name = f'episode_{episode_idx}'
+            if os.path.isfile(os.path.join(dataset_dir, data_name + '.hdf5')):
+                save_hdf5_video(os.path.join(dataset_dir, data_name))
+            else:
+                break
+    zip_mp4_files(dataset_dir)
+    # qpos, qvel, action, image_dict = load_hdf5(dataset_dir, datas_name)
+    # save_videos(image_dict, DT, video_path=os.path.join(dataset_dir, datas_name + '_video.mp4'))
     # visualize_joints(qpos, action, plot_path=os.path.join(dataset_dir, dataset_name + '_qpos.png'))
     # visualize_timestamp(t_list, dataset_path) # TODO addn timestamp back
 

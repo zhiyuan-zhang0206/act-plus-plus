@@ -301,6 +301,27 @@ def postprocess_base_action(base_action):
 
 ### env utils
 
+def sample_stir_pose():
+    x_range = [0.0, 0.2]
+    y_range = [0.4, 0.6]
+    z_range = [0.05, 0.05]
+
+    ranges = np.vstack([x_range, y_range, z_range])
+    cup_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
+    cup_quat = np.array([1, 0, 0, 0])
+    cup_pose = np.concatenate([cup_position, cup_quat])
+
+    x_range = [0.2, 0.4]
+    y_range = [0.4, 0.6]
+    z_range = [0.05, 0.05]
+    ranges = np.vstack([x_range, y_range, z_range])
+    spoon_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
+    spoon_quat = np.array([1, 0, 0, 0])
+    spoon_pose = np.concatenate([spoon_position, spoon_quat])
+    return cup_pose, spoon_pose
+
+
+
 def sample_box_pose():
     x_range = [0.0, 0.2]
     y_range = [0.4, 0.6]

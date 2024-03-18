@@ -145,3 +145,4 @@ ckpts/
 *.png
 *.npy
 play.ipynb
+generated_data/

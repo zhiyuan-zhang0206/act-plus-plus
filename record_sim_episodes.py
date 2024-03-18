@@ -1,5 +1,7 @@
 import time
 import os
+os.environ['MUJOCO_GL'] = 'egl'
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
@@ -8,11 +10,13 @@ import h5py
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env, BOX_POSE
-from scripted_policy import PickAndTransferPolicy, InsertionPolicy
-
+from scripted_policy import PickAndTransferPolicy, InsertionPolicy, StirPolicy
+from pathlib import Path
 import IPython
 e = IPython.embed
 
+# python3 record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
+# python3 record_sim_episodes.py --task_name sim_stir_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
 
 def main(args):
     """
@@ -41,6 +45,8 @@ def main(args):
         policy_cls = InsertionPolicy
     elif task_name == 'sim_transfer_cube_scripted_mirror':
         policy_cls = PickAndTransferPolicy
+    elif task_name == 'sim_stir_scripted':
+        policy_cls = StirPolicy
     else:
         raise NotImplementedError
 
@@ -159,7 +165,9 @@ def main(args):
 
         # HDF5
         t0 = time.time()
-        dataset_path = os.path.join(dataset_dir, f'episode_{episode_idx}')
+        dataset_path = Path(os.path.join(dataset_dir, task_name ,f'episode_{episode_idx}'))
+        dataset_path.parent.mkdir(parents=True, exist_ok=True)
+        dataset_path = dataset_path.as_posix()
         with h5py.File(dataset_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
             obs = root.create_group('observations')
@@ -182,9 +190,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=True)
-    parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=True)
-    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False)
+    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
+    parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
+    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     
     main(vars(parser.parse_args()))
