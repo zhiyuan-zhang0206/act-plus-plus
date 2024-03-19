@@ -3,10 +3,10 @@ import numpy as np
 import cv2
 import h5py
 import argparse
-
+import multiprocessing
 import matplotlib.pyplot as plt
 from constants import DT
-
+from pathlib import Path
 import IPython
 e = IPython.embed
 
@@ -33,13 +33,16 @@ def zip_mp4_files(directory):
             zipf.write(file)
     
     print(f'All .mp4 files have been zipped into {zip_path}')
+    # delete all .mp4 files
+    directory = Path(directory)
+    for file in directory.glob('*.mp4'):
+        os.remove(file)
 
-# Example usage:
-# zip_mp4_files('/path/to/directory')
 
-
-def load_hdf5(dataset_dir, dataset_name):
-    dataset_path = os.path.join(dataset_dir, dataset_name + '.hdf5')
+def load_hdf5(dataset_path):
+    # dataset_path = os.path.join(dataset_dir, dataset_name + '.hdf5')
+    if not os.path.isfile(dataset_path):
+        dataset_path = dataset_path + '.hdf5'
     if not os.path.isfile(dataset_path):
         print(f'Dataset does not exist at \n{dataset_path}\n')
         exit()
@@ -57,7 +60,7 @@ def load_hdf5(dataset_dir, dataset_name):
 
 def save_hdf5_video(path):
     qpos, qvel, action, image_dict = load_hdf5(path)
-    save_videos(image_dict, DT, video_path=os.path.join(path.replace('.hdf5') + '.mp4'))
+    save_videos(image_dict, DT, video_path=os.path.join(path.replace('.hdf5','') + '.mp4'))
 
 def main(args):
     dataset_dir = args['dataset_dir']
@@ -72,12 +75,10 @@ def main(args):
         save_hdf5_video(os.path.join(dataset_dir, data_name))
     else:
         print(f'Visualizing all episodes in {dataset_dir}')
-        for episode_idx in range(100):
-            data_name = f'episode_{episode_idx}'
-            if os.path.isfile(os.path.join(dataset_dir, data_name + '.hdf5')):
-                save_hdf5_video(os.path.join(dataset_dir, data_name))
-            else:
-                break
+        data_names = [name for name in os.listdir(dataset_dir) if name.endswith('.hdf5')]
+        with multiprocessing.Pool(16) as pool:
+            pool.map(save_hdf5_video, [os.path.join(dataset_dir, name) for name in data_names])
+            
     zip_mp4_files(dataset_dir)
     # qpos, qvel, action, image_dict = load_hdf5(dataset_dir, datas_name)
     # save_videos(image_dict, DT, video_path=os.path.join(dataset_dir, datas_name + '_video.mp4'))

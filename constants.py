@@ -8,7 +8,7 @@ SIM_TASK_CONFIGS = {
         'dataset_dir': DATA_DIR + '/sim_transfer_cube_scripted',
         'num_episodes': 50,
         'episode_len': 400,
-        'camera_names': ['top', 'left_wrist', 'right_wrist']
+        'camera_names': ['top', 'left_wrist', 'right_wrist', 'angle', 'front_close']
     },
 
     'sim_transfer_cube_human':{
@@ -30,7 +30,7 @@ SIM_TASK_CONFIGS = {
         'dataset_dir': DATA_DIR + '/sim_stir_scripted',
         'num_episodes': 50,
         'episode_len': 400,
-        'camera_names': ['top', 'left_wrist', 'right_wrist']
+        'camera_names': ['top', 'left_wrist', 'right_wrist', 'angle', 'front_close']
     },
 
     'sim_insertion_human': {

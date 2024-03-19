@@ -52,8 +52,8 @@ def main(args):
 
     success = []
     for episode_idx in range(num_episodes):
-        print(f'{episode_idx=}')
-        print('Rollout out EE space scripted policy')
+        print(f'Episode: {episode_idx}/{num_episodes}')
+        # print('Rollout out EE space scripted policy')
         # setup the environment
         env = make_ee_sim_env(task_name)
         ts = env.reset()
@@ -97,7 +97,7 @@ def main(args):
         del policy
 
         # setup the environment
-        print('Replaying joint commands')
+        # print('Replaying joint commands')
         env = make_sim_env(task_name)
         BOX_POSE[0] = subtask_info # make sure the sim_env has the same object configurations as ee_sim_env
         ts = env.reset()
@@ -183,7 +183,7 @@ def main(args):
 
             for name, array in data_dict.items():
                 root[name][...] = array
-        print(f'Saving: {time.time() - t0:.1f} secs\n')
+        # print(f'Saving: {time.time() - t0:.1f} secs\n')
 
     print(f'Saved to {dataset_dir}')
     print(f'Success: {np.sum(success)} / {len(success)}')
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
     parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
-    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
+    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=50)
     parser.add_argument('--onscreen_render', action='store_true')
     
     main(vars(parser.parse_args()))
