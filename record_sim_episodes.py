@@ -47,12 +47,18 @@ def main(args):
         policy_cls = PickAndTransferPolicy
     elif task_name == 'sim_stir_scripted':
         policy_cls = StirPolicy
+        # policy_cls = InsertionPolicy
     else:
         raise NotImplementedError
+    print(f'Policy class: {policy_cls.__name__}')
 
     success = []
+    dataset_path = Path(os.path.join(dataset_dir, task_name))
+    # clear this directory
+    for file in dataset_path.glob('*'):
+        os.remove(file)
     for episode_idx in range(num_episodes):
-        print(f'Episode: {episode_idx}/{num_episodes}')
+        print(f'Episode: {episode_idx+1}/{num_episodes}')
         # print('Rollout out EE space scripted policy')
         # setup the environment
         env = make_ee_sim_env(task_name)
@@ -164,11 +170,11 @@ def main(args):
                 data_dict[f'/observations/images/{cam_name}'].append(ts.observation['images'][cam_name])
 
         # HDF5
-        t0 = time.time()
-        dataset_path = Path(os.path.join(dataset_dir, task_name ,f'episode_{episode_idx}'))
-        dataset_path.parent.mkdir(parents=True, exist_ok=True)
-        dataset_path = dataset_path.as_posix()
-        with h5py.File(dataset_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
+        # t0 = time.time()
+        data_path = dataset_path / f'episode_{episode_idx}'
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        data_path = data_path.as_posix()
+        with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
             obs = root.create_group('observations')
             image = obs.create_group('images')
@@ -177,9 +183,12 @@ def main(args):
                                          chunks=(1, 480, 640, 3), )
             # compression='gzip',compression_opts=2,)
             # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
-            qpos = obs.create_dataset('qpos', (max_timesteps, 14))
-            qvel = obs.create_dataset('qvel', (max_timesteps, 14))
-            action = root.create_dataset('action', (max_timesteps, 14))
+            # qpos = obs.create_dataset('qpos', (max_timesteps, 14))
+            # qvel = obs.create_dataset('qvel', (max_timesteps, 14))
+            # action = root.create_dataset('action', (max_timesteps, 14))
+            obs.create_dataset('qpos', (max_timesteps, 14))
+            obs.create_dataset('qvel', (max_timesteps, 14))
+            root.create_dataset('action', (max_timesteps, 14))
 
             for name, array in data_dict.items():
                 root[name][...] = array

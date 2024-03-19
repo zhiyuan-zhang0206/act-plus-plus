@@ -261,7 +261,6 @@ class StirTask(BimanualViperXTask):
 
     def get_reward(self, physics):
         # return whether peg touches the pin
-        return 4
         all_contact_pairs = []
         for i_contact in range(physics.data.ncon):
             id_geom_1 = physics.data.contact[i_contact].geom1
