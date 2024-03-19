@@ -16,8 +16,13 @@ STATE_NAMES = JOINT_NAMES + ["gripper"]
 import os
 import glob
 import zipfile
-
+from datetime import datetime
 def zip_mp4_files(directory):
+    # if only one mp4 file, do not zip
+    if len(glob.glob(os.path.join(directory, '*.mp4'))) == 1:
+        print(f'Only one .mp4 file found in {directory}, no need to zip')
+        return
+    
     # Path to the zip file we want to create, under the input directory
     zip_path = os.path.join(directory, 'all_videos.zip')
     
@@ -63,6 +68,7 @@ def save_hdf5_video(path):
     save_videos(image_dict, DT, video_path=os.path.join(path.replace('.hdf5','') + '.mp4'))
 
 def main(args):
+    print(f'time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     dataset_dir = args['dataset_dir']
     episode_idx = args['episode_idx']
     ismirror = args['ismirror']

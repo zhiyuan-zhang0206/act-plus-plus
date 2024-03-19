@@ -1,0 +1,14 @@
+<mujoco>
+    <asset>
+        <mesh name="cup" file="cup.obj" />
+        <texture name="cup_texture" file="cup_texture.png" type="2d" />
+        <material name="cup_material" texture="cup_texture" />
+    </asset>
+    <worldbody>
+        <body name="cup" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
+            <geom type="mesh" name="cup geom" mesh="cup" rgba="0.95 0.65 0.15 0.94"/>
+            <joint name="cup_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+        </body>
+    </worldbody>
+</mujoco>

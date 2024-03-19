@@ -4,22 +4,9 @@
     <worldbody>
         <include file="vx300s_left.xml" />
         <include file="vx300s_right.xml" />
-
-        <body name="cup" pos="0.2 0.5 0.05">
-            <joint name="cup_joint" type="free"/>
-            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
-            <geom type="cylinder" size="0.03 0.05" pos="0 0 0" rgba="0.8 0.5 0.2 1"/> <!-- Brown cup -->
-        </body>
-
-        <body name="spoon" pos="-0.2 0.5 0.05">
-            <joint name="spoon_joint" type="free"/>
-            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
-            <geom type="box" size="0.01 0.02 0.001" pos="0 -0.02 0.05" rgba="0.9 0.9 0.9 1"/> <!-- Silver spoon -->
-            <geom type="box" size="0.005 0.01 0.001" pos="0 0.01 0.05" rgba="0.9 0.9 0.9 1"/> <!-- Spoon handle -->
-        </body>
-
     </worldbody>
-
+    <include file="cup.xml" />
+    <include file="spoon.xml" />
     <actuator>
         <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_left/waist" kp="800"  user="1" forcelimited="true" forcerange="-150 150"/>
         <position ctrllimited="true" ctrlrange="-1.85005 1.25664" joint="vx300s_left/shoulder" kp="1600"  user="1" forcelimited="true" forcerange="-300 300"/>

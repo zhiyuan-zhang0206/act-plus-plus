@@ -283,10 +283,14 @@ class StirEETask(BimanualViperXEETask):
         self.initialize_robots(physics)
         # randomize box position
         cup_pose, spoon_pose = sample_stir_pose()
-        cup_start_idx = physics.model.name2id('cup_joint', 'joint')
+        id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky
+
+        cup_start_id = physics.model.name2id('cup_joint', 'joint')
+        cup_start_idx = id2index(cup_start_id)
         np.copyto(physics.data.qpos[cup_start_idx : cup_start_idx + 7], cup_pose)
 
-        spoon_start_idx = physics.model.name2id('spoon_joint', 'joint')
+        spoon_start_id = physics.model.name2id('spoon_joint', 'joint')
+        spoon_start_idx = id2index(spoon_start_id)
         np.copyto(physics.data.qpos[spoon_start_idx : spoon_start_idx + 7], spoon_pose)
         # print(f"randomized cube position to {cube_position}")
 
