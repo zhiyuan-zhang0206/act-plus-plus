@@ -152,34 +152,35 @@ class InsertionPolicy(BasePolicy):
 class StirPolicy(BasePolicy):
     language_instruction :str = 'use spoon to stir coffee'
     def generate_trajectory(self, ts_first):
-        init_mocap_pose_right = ts_first.observation['mocap_pose_right']
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
+        init_mocap_pose_right = ts_first.observation['mocap_pose_right']
 
-        peg_info = np.array(ts_first.observation['env_state'])[:7]
-        peg_xyz = peg_info[:3]
-        peg_quat = peg_info[3:]
+        cup_info = np.array(ts_first.observation['env_state'])[:7]
+        cup_xyz = cup_info[:3]
+        cup_quat = cup_info[3:]
 
-        socket_info = np.array(ts_first.observation['env_state'])[7:]
-        socket_xyz = socket_info[:3]
-        socket_quat = socket_info[3:]
+        spoon_info = np.array(ts_first.observation['env_state'])[7:]
+        spoon_xyz = spoon_info[:3]
+        spoon_quat = spoon_info[3:]
 
         gripper_pick_quat_right = Quaternion(init_mocap_pose_right[3:])
         gripper_pick_quat_right = gripper_pick_quat_right * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
 
-        gripper_pick_quat_left = Quaternion(init_mocap_pose_right[3:])
-        gripper_pick_quat_left = gripper_pick_quat_left * Quaternion(axis=[0.0, 1.0, 0.0], degrees=60)
+        gripper_pick_quat_left = Quaternion(init_mocap_pose_left[3:])
+        # gripper_pick_quat_left = gripper_pick_quat_left * Quaternion(axis=[0.0, 1.0, 0.0], degrees=60)
 
         meet_xyz = np.array([0.2, 0.7, 0.3])
         lift_right = 0.00715
 
         self.left_trajectory = [
-            {"t": 0,   "xyz": init_mocap_pose_left[:3] + np.array([0.2, 0, -0.03]), "quat": init_mocap_pose_left[3:], "gripper": 0}, # sleep
-            {"t": 120, "xyz": meet_xyz + np.array([-0.1, 0, 0]), "quat": init_mocap_pose_left[3:], "gripper": 1}, # sleep
-            {"t": 170, "xyz": init_mocap_pose_left[:3], "quat": init_mocap_pose_left[3:], "gripper": 0}, # sleep
-            {"t": 220, "xyz": meet_xyz + np.array([-0.1, 0, 0]), "quat": init_mocap_pose_left[3:], "gripper": 1}, # sleep
-            {"t": 285, "xyz": init_mocap_pose_left[:3], "quat": init_mocap_pose_left[3:], "gripper": 0}, # sleep
-            {"t": 340, "xyz": meet_xyz + np.array([-0.1, 0, 0]), "quat": init_mocap_pose_left[3:], "gripper": 1}, # sleep
-            {"t": 400, "xyz": init_mocap_pose_left[:3], "quat": init_mocap_pose_left[3:], "gripper": 0}, # sleep
+            {"t": 0,    "xyz": init_mocap_pose_left[:3],                "quat": gripper_pick_quat_left.elements,            "gripper": 1}, # sleep
+            {"t": 70,   "xyz": cup_xyz + np.array([-0.05, 0, 0.3]),     "quat": gripper_pick_quat_left.elements,            "gripper": 1}, # sleep
+            {"t": 170,  "xyz": cup_xyz + np.array([-0.02, 0, 0.1]),     "quat": gripper_pick_quat_left.elements,            "gripper": 1}, # sleep
+            {"t": 220,  "xyz": cup_xyz + np.array([-0.02, 0, 0.1]),     "quat": gripper_pick_quat_left.elements,            "gripper": 0}, # sleep
+            {"t": 285,  "xyz": cup_xyz + np.array([-0.02, 0, 0.1]),     "quat": gripper_pick_quat_left.elements,            "gripper": 0}, # sleep
+            {"t": 350,  "xyz": cup_xyz + np.array([-0.02, 0, 0.3]),     "quat": gripper_pick_quat_left.elements,            "gripper": 0}, # sleep
+            {"t": 400,  "xyz": cup_xyz + np.array([-0.02, 0, 0.3]),     "quat": gripper_pick_quat_left.elements,            "gripper": 0}, # sleep
+            {"t": 400,  "xyz": cup_xyz + np.array([-0.02, 0, 0.3]),     "quat": gripper_pick_quat_left.elements,            "gripper": 0}, # sleep
             
             # {"t": 120, "xyz": socket_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat_left.elements, "gripper": 1}, # approach the cube
             # {"t": 170, "xyz": socket_xyz + np.array([0, 0, -0.03]), "quat": gripper_pick_quat_left.elements, "gripper": 1}, # go down
@@ -190,13 +191,13 @@ class StirPolicy(BasePolicy):
         ]
 
         self.right_trajectory = [
-            {"t": 0,   "xyz": init_mocap_pose_right[:3], "quat": init_mocap_pose_right[3:], "gripper": 0}, # sleep
-            {"t": 120, "xyz": meet_xyz + np.array([0.1, 0, 0]), "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
-            {"t": 170, "xyz": init_mocap_pose_right[:3], "quat": init_mocap_pose_right[3:], "gripper": 0}, # sleep
+            {"t": 0,   "xyz": init_mocap_pose_right[:3],"quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
+            {"t": 120, "xyz": spoon_xyz + np.array([0.0, 0, 0.2]), "quat": init_mocap_pose_right[3:], "gripper":1}, # sleep
+            {"t": 170, "xyz": init_mocap_pose_right[:3],        "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
             {"t": 220, "xyz": meet_xyz + np.array([0.1, 0, 0]), "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
-            {"t": 285, "xyz": init_mocap_pose_right[:3], "quat": init_mocap_pose_right[3:], "gripper": 0}, # sleep
+            {"t": 285, "xyz": init_mocap_pose_right[:3],        "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
             {"t": 340, "xyz": meet_xyz + np.array([0.1, 0, 0]), "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
-            {"t": 400, "xyz": init_mocap_pose_right[:3], "quat": init_mocap_pose_right[3:], "gripper": 0}, # sleep
+            {"t": 400, "xyz": init_mocap_pose_right[:3],        "quat": init_mocap_pose_right[3:], "gripper": 1}, # sleep
             
             # {"t": 120, "xyz": peg_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat_right.elements, "gripper": 1}, # approach the cube
             # {"t": 170, "xyz": peg_xyz + np.array([0, 0, -0.03]), "quat": gripper_pick_quat_right.elements, "gripper": 1}, # go down

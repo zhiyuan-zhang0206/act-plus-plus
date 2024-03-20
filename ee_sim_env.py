@@ -80,7 +80,7 @@ class BimanualViperXEETask(base.Task):
         g_right_ctrl = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(action_right[7])
         np.copyto(physics.data.ctrl, np.array([g_left_ctrl, -g_left_ctrl, g_right_ctrl, -g_right_ctrl]))
 
-    def initialize_robots(self, physics):
+    def initialize_robots(self, physics, close_width=None):
         # reset joint position
         physics.named.data.qpos[:16] = START_ARM_POSE
 
@@ -97,12 +97,20 @@ class BimanualViperXEETask(base.Task):
         np.copyto(physics.data.mocap_quat[1],  [1, 0, 0, 0])
 
         # reset gripper control
-        close_gripper_control = np.array([
-            PUPPET_GRIPPER_POSITION_CLOSE,
-            -PUPPET_GRIPPER_POSITION_CLOSE,
-            PUPPET_GRIPPER_POSITION_CLOSE,
-            -PUPPET_GRIPPER_POSITION_CLOSE,
-        ])
+        if close_width is not None:
+            close_gripper_control = np.array([
+                close_width,
+                -close_width,
+                close_width,
+                -close_width,
+            ])
+        else:
+            close_gripper_control = np.array([
+                PUPPET_GRIPPER_POSITION_CLOSE,
+                -PUPPET_GRIPPER_POSITION_CLOSE,
+                PUPPET_GRIPPER_POSITION_CLOSE,
+                -PUPPET_GRIPPER_POSITION_CLOSE,
+            ])
         np.copyto(physics.data.ctrl, close_gripper_control)
 
     def initialize_episode(self, physics):
@@ -280,7 +288,7 @@ class StirEETask(BimanualViperXEETask):
 
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
-        self.initialize_robots(physics)
+        self.initialize_robots(physics, close_width=0.044)
         # randomize box position
         cup_pose, spoon_pose = sample_stir_pose()
         id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky

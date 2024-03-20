@@ -12,11 +12,62 @@ from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env, BOX_POSE
 from scripted_policy import PickAndTransferPolicy, InsertionPolicy, StirPolicy
 from pathlib import Path
+from matplotlib import pyplot as plt
+from loguru import logger
 # import IPython
 # e = IPython.embed
 
 # python3 record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
 # python3 record_sim_episodes.py --task_name sim_stir_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
+
+image_idx = 0
+debug = False
+def debug_visualize_exit(ts, dataset_path, exit=False):
+    if not debug:
+        return
+    
+    # save image
+    global image_idx
+
+    image = ts.observation['images']['top']
+    image_path = dataset_path / f'{image_idx}_top.png'
+    plt.imsave(image_path.as_posix(), image)
+    image = ts.observation['images']['angle']
+    image_path = dataset_path / f'{image_idx}_angle.png'
+    plt.imsave(image_path.as_posix(), image)
+    image = ts.observation['images']['front_close']
+    image_path = dataset_path / f'{image_idx}_front_close.png'
+    plt.imsave(image_path.as_posix(), image)
+    print(f'Saved to {image_path}')
+    
+    image_idx += 1
+    if exit:
+        import sys
+        sys.exit()
+
+def configure_logging():
+    # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
+    log_dir = Path(__file__).parent / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = log_dir / f'{timestamp}.log'
+    logger.add(log_file.as_posix())
+
+def log_qpos(qpos):
+    logger.info('QPose')
+    logger.info(f"Left : {qpos[6]: .3f}, q: {' '.join(f'{i: .3f}' for i in qpos[0:7])}")
+    logger.info(f"Right: {qpos[13]: .3f}, q: {' '.join(f'{i: .3f}' for i in qpos[6:13])}")
+
+def log_action(action):
+    # 1 means open and 0 means close
+    logger.info('Action')
+    logger.info(f"Left : {action[7]: .3f}, xyz: {' '.join(f'{i: .3f}' for i in action[0:3])}, quat: {' '.join(f'{i: .3f}' for i in action[3:7])}")
+    logger.info(f"Right: {action[15]: .3f}, xyz: {' '.join(f'{i: .3f}' for i in action[7:10])}, quat: {' '.join(f'{i: .3f}' for i in action[10:14])}")
+
+def log_env_state(state):
+    logger.info('Env state')
+    logger.info(f"Cup   : {' '.join(f'{i: .3f}' for i in state[0:3])}, {' '.join(f'{i: .3f}' for i in state[3:7])}")
+    logger.info(f"Spoon : {' '.join(f'{i: .3f}' for i in state[7:10])}, {' '.join(f'{i: .3f}' for i in state[10:14])}")
 
 def main(args):
     """
@@ -26,6 +77,7 @@ def main(args):
     Replay this joint trajectory (as action sequence) in sim_env, and record all observations.
     Save this episode of data, and continue to next episode of data collection.
     """
+    configure_logging()
 
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
@@ -64,15 +116,23 @@ def main(args):
         episode = [ts]
         policy = policy_cls(inject_noise)
 
-        last_action = None
+        # last_action = None
         for step in range(episode_len):
+            logger.info(f"Step: {step+1}/{episode_len}")
+            log_env_state(ts.observation['env_state'])
+            log_qpos(ts.observation['qpos'])
             action = policy(ts)
-            if last_action is not None:
+            log_action(action)
+            # if last_action is not None:
                 # print(action == last_action)
-                pass
+                # pass
             ts = env.step(action)
+            if step % 1 == 0:
+                # print(f"Step: {step}/{episode_len}")
+                debug_visualize_exit(ts, dataset_path, exit = step == 250)
             episode.append(ts)
-            last_action = action
+            # last_action = action
+        debug_visualize_exit(ts, dataset_path, exit=True)
 
         episode_return = np.sum([ts.reward for ts in episode[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode[1:]])
@@ -162,7 +222,8 @@ def main(args):
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
-            root.attrs['language_instruction'] = policy_cls.language_instruction
+            if 'language_instruction' in root.attrs:
+                root.attrs['language_instruction'] = policy_cls.language_instruction
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in camera_names:
