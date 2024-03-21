@@ -26,6 +26,7 @@
                                 <body name="vx300s_left/camera_focus" pos="0.15 0 0.01">
                                     <site pos="0 0 0" size="0.01" type="sphere" name="left_cam_focus" rgba="0 0 1 0"/>
                                 </body>
+                                <site pos="0.2 0 0" size="0.01" type="sphere" name="vx300s_left/gripper_link_site" rgba="1 0 0 0"/>
                                 <site pos="0.15 0 0" size="0.003 0.003 0.03" type="box" name="cali_left_site1" rgba="0 0 1 0"/>
                                 <site pos="0.15 0 0" size="0.003 0.03 0.003" type="box" name="cali_left_site2" rgba="0 0 1 0"/>
                                 <site pos="0.15 0 0" size="0.03 0.003 0.003" type="box" name="cali_left_site3" rgba="0 0 1 0"/>

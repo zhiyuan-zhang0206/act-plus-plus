@@ -114,12 +114,14 @@ class BimanualViperXTask(base.Task):
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
         obs['images'] = dict()
-        obs['images']['top'] = physics.render(height=480, width=640, camera_id='top')
-        obs['images']['left_wrist'] = physics.render(height=480, width=640, camera_id='left_wrist')
-        obs['images']['right_wrist'] = physics.render(height=480, width=640, camera_id='right_wrist')
-        obs['images']['angle'] = physics.render(height=480, width=640, camera_id='angle')
-        obs['images']['front_close'] = physics.render(height=480, width=640, camera_id='front_close')
-
+        obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
+        obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
+        obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
+        obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
+        obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
+        obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
+        obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
+        
         return obs
 
     def get_reward(self, physics):
@@ -237,6 +239,7 @@ class InsertionTask(BimanualViperXTask):
             reward = 4
         return reward
 
+# from ee_sim_env import get_qpos_ik
 class StirTask(BimanualViperXTask):
     def __init__(self, random=None):
         super().__init__(random=random)
@@ -261,6 +264,7 @@ class StirTask(BimanualViperXTask):
 
     def get_reward(self, physics):
         # return whether peg touches the pin
+        return 4
         all_contact_pairs = []
         for i_contact in range(physics.data.ncon):
             id_geom_1 = physics.data.contact[i_contact].geom1

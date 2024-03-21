@@ -24,11 +24,13 @@ def convert():
             language_instruction = root.attrs['language_instruction']
 
         language_embedding = language_to_embedding[language_instruction]
+
+        print(0)
     
 def read(path):
     pass
 
-
+convert()
 
 
 

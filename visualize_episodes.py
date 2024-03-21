@@ -66,6 +66,7 @@ def load_hdf5(dataset_path):
 def save_hdf5_video(path):
     qpos, qvel, action, image_dict = load_hdf5(path)
     save_videos(image_dict, DT, video_path=os.path.join(path.replace('.hdf5','') + '.mp4'))
+    save_videos_separate(image_dict, DT, video_path=os.path.join(path.replace('.hdf5','') + '_separate.mp4'))
 
 def main(args):
     print(f'time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
@@ -127,6 +128,52 @@ def save_videos(video, dt, video_path=None):
             out.write(image)
         out.release()
         print(f'Saved video to: {video_path}')
+from tqdm import trange
+def save_videos_separate(video, dt, video_path=None):
+    return
+    if isinstance(video, list):
+        cam_names = list(video[0].keys())
+        cam_names = sorted(cam_names)
+        h, w, _ = video[0][cam_names[0]].shape
+        w = w * len(cam_names)
+        fps = int(1/dt)
+        for cam_name in cam_names:
+            out = cv2.VideoWriter(video_path.replace('.mp4', f"{cam_name}.mp4"), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))    
+            for ts, image_dict in enumerate(video):
+                images = image_dict[cam_name][:, :, [2, 1, 0]]
+
+        # out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+            # for cam_name in cam_names:
+                # image = image_dict[cam_name]
+                # image = image[:, :, [2, 1, 0]] # swap B and R channel
+                # images.append(image)
+            # images = np.concatenate(images, axis=1)
+                out.write(images)
+            out.release()
+        print(f'Saved video to: {video_path}')
+    elif isinstance(video, dict):
+        # raise
+        cam_names = list(video.keys())
+        cam_names = sorted(cam_names)
+        all_cam_videos = []
+        for cam_name in cam_names:
+            all_cam_videos.append(video[cam_name])
+        all_cam_videos = np.concatenate(all_cam_videos, axis=2) # width dimension
+
+        # n_frames, h, w, _ = all_cam_videos.shape
+        # n_frames = int(n_frames / len(cam_names))
+        # n_frames = video[cam_names[0]].shape[0]
+        n_frames, h, w, _ = video[cam_names[0]].shape
+        fps = int(1 / dt)
+        for cam_name in cam_names:
+            out = cv2.VideoWriter(video_path.replace('.mp4', f"{cam_name}.mp4"), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+            for t in trange(n_frames):
+                # image = all_cam_videos[t]
+                image = video[cam_name]
+                image = image[:, :, [2, 1, 0]]  # swap B and R channel
+                out.write(image)
+            out.release()
+            print(f'Saved video to: {video_path.replace(".mp4", f"{cam_name}.mp4")}')
 
 
 def visualize_joints(qpos_list, command_list, plot_path=None, ylim=None, label_overwrite=None):

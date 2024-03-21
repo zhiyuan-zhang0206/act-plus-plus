@@ -22,14 +22,16 @@ from loguru import logger
 
 image_idx = 0
 debug = False
-def debug_visualize_exit(ts, dataset_path, exit=False):
-    if not debug:
-        return
+def debug_visualize(ts, dataset_path, step):
+
     
     # save image
-    global image_idx
+    # global image_idx
+    image_idx = step
+    if step % 20 != 0:
+        return
 
-    image = ts.observation['images']['top']
+    image = ts.observation['images']['horizontal']
     image_path = dataset_path / f'{image_idx}_top.png'
     plt.imsave(image_path.as_posix(), image)
     image = ts.observation['images']['angle']
@@ -41,9 +43,9 @@ def debug_visualize_exit(ts, dataset_path, exit=False):
     print(f'Saved to {image_path}')
     
     image_idx += 1
-    if exit:
-        import sys
-        sys.exit()
+    # if exit:
+    #     import sys
+    #     sys.exit()
 
 def configure_logging():
     # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
@@ -68,7 +70,7 @@ def log_env_state(state):
     logger.info('Env state')
     logger.info(f"Cup   : {' '.join(f'{i: .3f}' for i in state[0:3])}, {' '.join(f'{i: .3f}' for i in state[3:7])}")
     logger.info(f"Spoon : {' '.join(f'{i: .3f}' for i in state[7:10])}, {' '.join(f'{i: .3f}' for i in state[10:14])}")
-
+from tqdm import trange
 def main(args):
     """
     Generate demonstration data in simulation.
@@ -117,22 +119,20 @@ def main(args):
         policy = policy_cls(inject_noise)
 
         # last_action = None
-        for step in range(episode_len):
-            logger.info(f"Step: {step+1}/{episode_len}")
-            log_env_state(ts.observation['env_state'])
-            log_qpos(ts.observation['qpos'])
+        for step in trange(episode_len):
+            # logger.info(f"Step: {step+1}/{episode_len}")
+            # debug_visualize_exit(ts, dataset_path, step)
+            # log_env_state(ts.observation['env_state'])
+            # log_qpos(ts.observation['qpos'])
             action = policy(ts)
-            log_action(action)
+            # log_action(action)
             # if last_action is not None:
                 # print(action == last_action)
                 # pass
             ts = env.step(action)
-            if step % 1 == 0:
-                # print(f"Step: {step}/{episode_len}")
-                debug_visualize_exit(ts, dataset_path, exit = step == 250)
             episode.append(ts)
             # last_action = action
-        debug_visualize_exit(ts, dataset_path, exit=True)
+        # debug_visualize_exit(ts, dataset_path, exit=True)
 
         episode_return = np.sum([ts.reward for ts in episode[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode[1:]])
@@ -162,10 +162,16 @@ def main(args):
         ts = env.reset()
 
         episode_replay = [ts]
-
+        step=0
         for t in range(len(joint_traj)): # note: this will increase episode length by 1
+            logger.info(f"Step: {step+1}/{episode_len}")
+            debug_visualize(ts, dataset_path, step)
+            log_env_state(ts.observation['env_state'])
+            # log_qpos(ts.observation['qpos'])
             action = joint_traj[t]
             ts = env.step(action)
+            # log_action(action)
+            step+=1
             episode_replay.append(ts)
 
         episode_return = np.sum([ts.reward for ts in episode_replay[1:]])
@@ -209,6 +215,7 @@ def main(args):
         while joint_traj:
             action = joint_traj.pop(0)
             ts = episode_replay.pop(0)
+            # ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
             data_dict['/observations/qvel'].append(ts.observation['qvel'])
             data_dict['/action'].append(action)
@@ -222,13 +229,13 @@ def main(args):
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
-            if 'language_instruction' in root.attrs:
+            if hasattr(policy_cls, 'language_instruction'):
                 root.attrs['language_instruction'] = policy_cls.language_instruction
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in camera_names:
-                _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), dtype='uint8',
-                                         chunks=(1, 480, 640, 3), )
+                _ = image.create_dataset(cam_name, (max_timesteps, 300, 300, 3), dtype='uint8',
+                                         chunks=(1, 300, 300, 3), )
             # compression='gzip',compression_opts=2,)
             # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
             # qpos = obs.create_dataset('qpos', (max_timesteps, 14))
@@ -236,6 +243,7 @@ def main(args):
             # action = root.create_dataset('action', (max_timesteps, 14))
             obs.create_dataset('qpos', (max_timesteps, 14))
             obs.create_dataset('qvel', (max_timesteps, 14))
+            # obs.craete_dataset()
             root.create_dataset('action', (max_timesteps, 14))
 
             for name, array in data_dict.items():

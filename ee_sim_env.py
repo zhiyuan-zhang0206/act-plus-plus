@@ -58,6 +58,63 @@ def make_ee_sim_env(task_name):
         raise NotImplementedError
     return env
 
+from dm_control.utils import inverse_kinematics as ik
+
+    # qpos_left = qpos_from_site_pose(physics,
+    #                                 site_name=left_site_name,
+    #                                 target_pos=target_pos_left,
+    #                                 target_quat=target_quat_left,
+    #                                 joint_names=joint_names_left,
+    #                                 max_steps=max_steps)
+
+    # # Compute qpos for the right end effector
+    # qpos_right = qpos_from_site_pose(physics,
+    #                                  site_name=right_site_name,
+    #                                  target_pos=target_pos_right,
+    #                                  target_quat=target_quat_right,
+    #                                  joint_names=joint_names_right,
+    #                                  max_steps=max_steps)
+
+from pyquaternion import Quaternion
+def rotate_z_pi(quat):
+    q = Quaternion(quat)
+    axis = q.axis
+
+    # Create the symmetric axis
+    symmetric_axis = np.array([-axis[0], axis[1], axis[2]])
+
+    # Create the symmetric quaternion
+    symmetric_q = Quaternion(axis=symmetric_axis, angle=q.angle)
+    return symmetric_q.elements
+
+def get_qpos_ik(physics, action_left, action_right):
+    qpos_left = ik.qpos_from_site_pose(physics, site_name='vx300s_left/gripper_link_site', 
+                               target_pos= action_left[:3],
+                               target_quat= action_left[3:7], 
+                               joint_names=[
+                                        "vx300s_left/waist",
+                                        "vx300s_left/shoulder",
+                                        "vx300s_left/elbow",
+                                        "vx300s_left/forearm_roll",
+                                        "vx300s_left/wrist_angle",
+                                        "vx300s_left/wrist_rotate"
+                                    ],
+                               max_steps=1000)
+    qpos_right = ik.qpos_from_site_pose(physics, site_name='vx300s_right/gripper_link_site', 
+                               target_pos= action_right[:3],
+                            #    target_quat= rotate_z_pi(action_right[3:7]), 
+                               target_quat= action_right[3:7], 
+                               joint_names=[
+                                        "vx300s_right/waist",
+                                        "vx300s_right/shoulder",
+                                        "vx300s_right/elbow",
+                                        "vx300s_right/forearm_roll",
+                                        "vx300s_right/wrist_angle",
+                                        "vx300s_right/wrist_rotate"
+                                    ],
+                               max_steps=1000)
+    return qpos_left.qpos[0:6], qpos_right.qpos[8:14]
+
 class BimanualViperXEETask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
@@ -68,12 +125,14 @@ class BimanualViperXEETask(base.Task):
         action_right = action[a_len:]
 
         # set mocap position and quat
-        # left
-        np.copyto(physics.data.mocap_pos[0], action_left[:3])
-        np.copyto(physics.data.mocap_quat[0], action_left[3:7])
-        # right
-        np.copyto(physics.data.mocap_pos[1], action_right[:3])
-        np.copyto(physics.data.mocap_quat[1], action_right[3:7])
+        qpos_left, qpos_right = get_qpos_ik(physics, action_left, action_right)
+        np.copyto(physics.data.qpos[0:6], qpos_left)
+        np.copyto(physics.data.qpos[8:14], qpos_right)
+        # np.copyto(physics.data.mocap_pos[0], action_left[:3])
+        # np.copyto(physics.data.mocap_quat[0], action_left[3:7])
+        # # right
+        # np.copyto(physics.data.mocap_pos[1], action_right[:3])
+        # np.copyto(physics.data.mocap_quat[1], action_right[3:7])
 
         # set gripper
         g_left_ctrl = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(action_left[7])
@@ -82,7 +141,7 @@ class BimanualViperXEETask(base.Task):
 
     def initialize_robots(self, physics, close_width=None):
         # reset joint position
-        physics.named.data.qpos[:16] = START_ARM_POSE
+        # physics.named.data.qpos[:16] = START_ARM_POSE
 
         # reset mocap to align with end effector
         # to obtain these numbers:
@@ -95,7 +154,19 @@ class BimanualViperXEETask(base.Task):
         # right
         np.copyto(physics.data.mocap_pos[1], np.array([0.31718881-0.1, 0.49999888, 0.29525084]))
         np.copyto(physics.data.mocap_quat[1],  [1, 0, 0, 0])
-
+        
+        action_left = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
+        action_right = np.concatenate([physics.data.mocap_pos[1], np.array([0, 0 , 0, -1])]).copy()
+        q_left, q_right = get_qpos_ik(physics, action_left, action_right)
+        # np.copyto(physics.data.qpos[0:6], q_left)
+        # np.copyto(physics.data.qpos[8:14], q_right)
+        physics.named.data.qpos[:16] = START_ARM_POSE
+        physics.named.data.qpos[0:6] = q_left
+        physics.named.data.qpos[8:14] = q_right
+        # from loguru import logger
+        # logger.critical(f"qpos: {physics.data.qpos}")
+        # import sys
+        # sys.exit()
         # reset gripper control
         if close_width is not None:
             close_gripper_control = np.array([
@@ -150,9 +221,13 @@ class BimanualViperXEETask(base.Task):
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
         obs['images'] = dict()
-        obs['images']['top'] = physics.render(height=480, width=640, camera_id='top')
-        obs['images']['angle'] = physics.render(height=480, width=640, camera_id='angle')
-        obs['images']['front_close'] = physics.render(height=480, width=640, camera_id='front_close')
+        obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
+        obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
+        obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
+        obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
+        obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
+        obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
+        obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
         # used in scripted policy to obtain starting pose
         obs['mocap_pose_left'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
         obs['mocap_pose_right'] = np.concatenate([physics.data.mocap_pos[1], physics.data.mocap_quat[1]]).copy()

@@ -30,7 +30,7 @@ SIM_TASK_CONFIGS = {
         'dataset_dir': DATA_DIR + '/sim_stir_scripted',
         'num_episodes': 50,
         'episode_len': 400,
-        'camera_names': ['top', 'left_wrist', 'right_wrist', 'angle', 'front_close']
+        'camera_names': ['horizontal', 'left_wrist', 'right_wrist', 'angle', 'front_close', 'left_angle', 'right_angle']
     },
 
     'sim_insertion_human': {
@@ -67,7 +67,11 @@ SIM_TASK_CONFIGS = {
 DT = 0.02
 FPS = 50
 JOINT_NAMES = ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"]
-START_ARM_POSE = [0, -0.96, 1.16, 0, -0.3, 0, 0.02239, -0.02239,  0, -0.96, 1.16, 0, -0.3, 0, 0.02239, -0.02239]
+START_ARM_POSE = [
+ -1.87211320e-17, -1.55692870e+00,  1.20114897e+00,  4.80183720e-17,
+  3.55779730e-01,  4.55363558e-16,  2.23900000e-02, -2.23900000e-02,
+ -6.98017643e-05, -1.55692870e+00,  1.20114897e+00,  1.79303823e-04,
+  3.55779736e-01, -1.68074953e-04,  2.23900000e-02, -2.23900000e-02,]
 
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/' # note: absolute path
 

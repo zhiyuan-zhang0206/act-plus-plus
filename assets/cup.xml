@@ -1,14 +1,32 @@
 <mujoco>
-    <asset>
-        <mesh name="cup" file="cup.obj" />
-        <texture name="cup_texture" file="cup_texture.png" type="2d" />
-        <material name="cup_material" texture="cup_texture" />
-    </asset>
-    <worldbody>
-        <body name="cup" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
-            <geom type="mesh" name="cup geom" mesh="cup" rgba="0.95 0.65 0.15 1" friction="1 0.005 0.0001" solimp="0.9 0.95 0.001" solref="0.001 1"/>
-            <joint name="cup_joint" type="free" frictionloss="0.01" />
-            <inertial pos="0 0 0" mass="0.5" diaginertia="0.02 0.02 0.02" />
-        </body>
-    </worldbody>
+  <asset>
+    <mesh name="cup_visual"           file="cup_visual.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_handle_collision" file="cup_handle_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_bottom_collision" file="cup_bottom_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_0_collision" file="cup_body_0.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_1_collision" file="cup_body_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_2_collision" file="cup_body_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_3_collision" file="cup_body_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_4_collision" file="cup_body_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_5_collision" file="cup_body_5.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_6_collision" file="cup_body_6.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cup_body_7_collision" file="cup_body_7.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+  <worldbody>
+    <body name="cup" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0">
+      <geom type="mesh" mesh="cup_visual" pos="0.0 0.0 0.0"  rgba="0.95 0.65 0.15 1" contype="0" conaffinity="0"/>
+      <geom type="mesh" mesh="cup_body_0_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_1_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_2_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_3_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_4_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_5_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_6_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_body_7_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <geom type="mesh" mesh="cup_handle_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0" friction="2 0.005 0.0001"/>
+      <geom type="mesh" mesh="cup_bottom_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
+      <joint name="cup_joint" type="free"/>
+      <inertial pos="0.0 0.0 0.0" mass="0.05" diaginertia="0.001 0.001 0.001"/>
+    </body>
+  </worldbody>
 </mujoco>

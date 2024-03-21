@@ -1,14 +1,16 @@
 <mujoco>
     <!-- <compiler meshdir="./mesh"/> -->
     <asset>
-        <mesh name="spoon" file="spoon.obj" />
-        <texture name="spoon_texture" file="spoon_texture.png" type="2d" />
-        <material name="spoon_material" texture="spoon_texture" />
+        <mesh name="spoon_visual" file="spoon_visual.stl" />
+        <mesh name="spoon_handle_collision" file="spoon_handle_collision.stl" />
+        <mesh name="spoon_front_collision" file="spoon_front_collision.stl" />
     </asset>
     <worldbody>
         <body name="spoon" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
-            <geom type="mesh" name="spoon geom" mesh="spoon" rgba="1 1 1 1"/>
-            <joint name="spoon_joint" type="free" frictionloss="0.01" />
+            <geom type="mesh" name="spoon_visual" mesh="spoon_visual" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+            <geom type="mesh" name="spoon_handle_collision" mesh="spoon_handle_collision" rgba="1 1 1 1" friction="2 0.005 0.0001"/>
+            <geom type="mesh" name="spoon_front_collision" mesh="spoon_front_collision" rgba="1 1 1 1"/>
+            <joint name="spoon_joint" type="free"/>
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
         </body>
     </worldbody>
