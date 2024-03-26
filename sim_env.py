@@ -121,7 +121,9 @@ class BimanualViperXTask(base.Task):
         obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
         obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
         obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
-        
+        # <geom condim="0" contype="0" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="left_dummy" rgba="1 0 0 0" />
+        obs['left_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_left/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_left/gripper_link'].copy()])
+        obs['right_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_right/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_right/gripper_link'].copy()])
         return obs
 
     def get_reward(self, physics):

@@ -142,7 +142,7 @@ dmypy.json
 ckpts/
 *log*
 
-*.png
+# *.png
 *.npy
 play.ipynb
 generated_data/

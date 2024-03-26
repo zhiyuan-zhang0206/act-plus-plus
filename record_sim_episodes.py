@@ -163,10 +163,10 @@ def main(args):
 
         episode_replay = [ts]
         step=0
-        for t in range(len(joint_traj)): # note: this will increase episode length by 1
-            logger.info(f"Step: {step+1}/{episode_len}")
-            debug_visualize(ts, dataset_path, step)
-            log_env_state(ts.observation['env_state'])
+        for t in trange(len(joint_traj)): # note: this will increase episode length by 1
+            # logger.info(f"Step: {step+1}/{episode_len}")
+            # debug_visualize(ts, dataset_path, step)
+            # log_env_state(ts.observation['env_state'])
             # log_qpos(ts.observation['qpos'])
             action = joint_traj[t]
             ts = env.step(action)
@@ -199,6 +199,8 @@ def main(args):
         data_dict = {
             '/observations/qpos': [],
             '/observations/qvel': [],
+            '/observations/left_pose': [],
+            '/observations/right_pose': [],
             '/action': [],
         }
         for cam_name in camera_names:
@@ -218,6 +220,8 @@ def main(args):
             # ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
             data_dict['/observations/qvel'].append(ts.observation['qvel'])
+            data_dict['/observations/left_pose'].append(ts.observation['left_pose'])
+            data_dict['/observations/right_pose'].append(ts.observation['right_pose'])
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts.observation['images'][cam_name])
@@ -243,6 +247,8 @@ def main(args):
             # action = root.create_dataset('action', (max_timesteps, 14))
             obs.create_dataset('qpos', (max_timesteps, 14))
             obs.create_dataset('qvel', (max_timesteps, 14))
+            obs.create_dataset('left_pose', (max_timesteps, 7))
+            obs.create_dataset('right_pose', (max_timesteps, 7))
             # obs.craete_dataset()
             root.create_dataset('action', (max_timesteps, 14))
 

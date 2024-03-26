@@ -231,7 +231,8 @@ class BimanualViperXEETask(base.Task):
         # used in scripted policy to obtain starting pose
         obs['mocap_pose_left'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
         obs['mocap_pose_right'] = np.concatenate([physics.data.mocap_pos[1], physics.data.mocap_quat[1]]).copy()
-
+        obs['left_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_left/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_left/gripper_link'].copy()])
+        obs['right_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_right/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_right/gripper_link'].copy()])
         # used when replaying joint trajectory
         obs['gripper_ctrl'] = physics.data.ctrl.copy()
         return obs

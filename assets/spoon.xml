@@ -8,8 +8,8 @@
     <worldbody>
         <body name="spoon" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
             <geom type="mesh" name="spoon_visual" mesh="spoon_visual" rgba="1 1 1 1" contype="0" conaffinity="0"/>
-            <geom type="mesh" name="spoon_handle_collision" mesh="spoon_handle_collision" rgba="1 1 1 1" friction="2 0.005 0.0001"/>
-            <geom type="mesh" name="spoon_front_collision" mesh="spoon_front_collision" rgba="1 1 1 1"/>
+            <geom type="mesh" name="spoon_handle_collision" mesh="spoon_handle_collision" rgba="1 1 1 0" friction="2 0.005 0.0001"/>
+            <geom type="mesh" name="spoon_front_collision" mesh="spoon_front_collision" rgba="1 1 1 0"/>
             <joint name="spoon_joint" type="free"/>
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
         </body>
