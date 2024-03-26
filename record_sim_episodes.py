@@ -1,7 +1,7 @@
 import time
 import os
-os.environ['MUJOCO_GL'] = 'egl'
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
+# os.environ['MUJOCO_GL'] = 'egl'
+# os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import numpy as np
 import argparse
 # import matplotlib.pyplot as plt
