@@ -1,7 +1,10 @@
 import time
 import os
 # os.environ['MUJOCO_GL'] = 'egl'
+os.environ['MUJOCO_GL'] = 'osmesa'
 # os.environ['PYOPENGL_PLATFORM'] = 'egl'
+# os.environ['DISPLAY'] = 'egl'
+# =:0
 import numpy as np
 import argparse
 # import matplotlib.pyplot as plt
@@ -27,22 +30,23 @@ def debug_visualize(ts, dataset_path, step):
     
     # save image
     # global image_idx
-    image_idx = step
+    # step = step
     if step % 20 != 0:
         return
 
-    image = ts.observation['images']['horizontal']
-    image_path = dataset_path / f'{image_idx}_top.png'
-    plt.imsave(image_path.as_posix(), image)
-    image = ts.observation['images']['angle']
-    image_path = dataset_path / f'{image_idx}_angle.png'
-    plt.imsave(image_path.as_posix(), image)
-    image = ts.observation['images']['front_close']
-    image_path = dataset_path / f'{image_idx}_front_close.png'
-    plt.imsave(image_path.as_posix(), image)
-    print(f'Saved to {image_path}')
+    for key in ['left_angle', 'right_angle']:
+        image = ts.observation['images'][key]
+        image_path = dataset_path / f'{step}_{key}.png'
+        plt.imsave(image_path.as_posix(), image)
+    # image = ts.observation['images']['angle']
+    # image_path = dataset_path / f'{step}_angle.png'
+    # plt.imsave(image_path.as_posix(), image)
+    # image = ts.observation['images']['front_close']
+    # image_path = dataset_path / f'{step}_front_close.png'
+    # plt.imsave(image_path.as_posix(), image)
+    # print(f'Saved to {image_path}')
     
-    image_idx += 1
+    step += 1
     # if exit:
     #     import sys
     #     sys.exit()
@@ -80,7 +84,7 @@ def main(args):
     Save this episode of data, and continue to next episode of data collection.
     """
     configure_logging()
-
+    start_index = args['start_index']
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
@@ -150,15 +154,16 @@ def main(args):
             joint[6] = left_ctrl
             joint[6+7] = right_ctrl
 
-        subtask_info = episode[0].observation['env_state'].copy() # box pose at step 0
+        # subtask_info = episode[0].observation['env_state'].copy() # box pose at step 0
 
         # clear unused variables
+        object_info = env.task.object_info
         del env
         del episode
         del policy
 
-        env = make_sim_env(task_name)
-        BOX_POSE[0] = subtask_info # make sure the sim_env has the same object configurations as ee_sim_env
+        env = make_sim_env(task_name, object_info=object_info)
+        # BOX_POSE[0] = subtask_info # make sure the sim_env has the same object configurations as ee_sim_env
         ts = env.reset()
 
         episode_replay = [ts]
@@ -170,7 +175,6 @@ def main(args):
             # log_qpos(ts.observation['qpos'])
             action = joint_traj[t]
             ts = env.step(action)
-            # log_action(action)
             step+=1
             episode_replay.append(ts)
 
@@ -214,6 +218,7 @@ def main(args):
         # len(joint_traj) i.e. actions: max_timesteps
         # len(episode_replay) i.e. time steps: max_timesteps + 1
         max_timesteps = len(joint_traj)
+        progress_bar = trange(max_timesteps)
         while joint_traj:
             action = joint_traj.pop(0)
             ts = episode_replay.pop(0)
@@ -225,10 +230,11 @@ def main(args):
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts.observation['images'][cam_name])
-
+            progress_bar.update(1)
+        progress_bar.close()
         # HDF5
         # t0 = time.time()
-        data_path = dataset_path / f'episode_{episode_idx}'
+        data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
@@ -263,8 +269,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
     parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
-    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=5)
+    parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
-    
+    parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
     main(vars(parser.parse_args()))
 

@@ -17,7 +17,7 @@ e = IPython.embed
 
 BOX_POSE = [None] # to be changed from outside
 
-def make_sim_env(task_name):
+def make_sim_env(task_name, object_info:dict=None)->control.Environment:
     """
     Environment for simulated robot bi-manual manipulation, with joint position control
     Action space:      [left_arm_qpos (6),             # absolute joint position
@@ -50,7 +50,7 @@ def make_sim_env(task_name):
     elif 'sim_stir' in task_name:
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_stir.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
-        task = StirTask(random=False)
+        task = StirTask(random=False, object_info=object_info)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
     
@@ -114,11 +114,11 @@ class BimanualViperXTask(base.Task):
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
         obs['images'] = dict()
-        obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
-        obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
-        obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
-        obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
-        obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
+        # obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
+        # obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
+        # obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
+        # obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
+        # obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
         obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
         obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
         # <geom condim="0" contype="0" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="left_dummy" rgba="1 0 0 0" />
@@ -243,9 +243,10 @@ class InsertionTask(BimanualViperXTask):
 
 # from ee_sim_env import get_qpos_ik
 class StirTask(BimanualViperXTask):
-    def __init__(self, random=None):
+    def __init__(self, random=None, object_info:dict=None):
         super().__init__(random=random)
         self.max_reward = 4
+        self.object_info = object_info
 
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
@@ -254,8 +255,9 @@ class StirTask(BimanualViperXTask):
         with physics.reset_context():
             physics.named.data.qpos[:16] = START_ARM_POSE
             np.copyto(physics.data.ctrl, START_ARM_POSE)
-            assert BOX_POSE[0] is not None
-            physics.named.data.qpos[-7*2:] = BOX_POSE[0] # two objects
+            physics.named.data.qpos[-7*self.object_info['object_num']:] = self.object_info['object_poses']
+            # assert BOX_POSE[0] is not None
+            # physics.named.data.qpos[-7*2:] = BOX_POSE[0] # two objects
             # print(f"{BOX_POSE=}")
         super().initialize_episode(physics)
 

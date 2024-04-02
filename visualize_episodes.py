@@ -18,30 +18,33 @@ import glob
 import zipfile
 from datetime import datetime
 def zip_mp4_files(directory):
+    
+    directory:Path = Path(directory)
     # if only one mp4 file, do not zip
-    if len(glob.glob(os.path.join(directory, '*.mp4'))) == 1:
+    if len(list(directory.glob('*.mp4'))) == 1:
         print(f'Only one .mp4 file found in {directory}, no need to zip')
         return
     
     # Path to the zip file we want to create, under the input directory
-    zip_path = os.path.join(directory, 'all_videos.zip')
-    
+    # zip_path = os.path.join(directory, 'all_videos.zip')
+    zip_path = directory / 'all_videos.zip'    
     # Create a zip file
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         # Change the current directory to the input directory to ensure file names
         # in the zip archive are relative to the input directory
-        os.chdir(directory)
+        # os.chdir(directory)
         
         # Loop through all .mp4 files in the directory
-        for file in glob.glob('*.mp4'):
+        # for file in glob.glob('*.mp4'):
+        for file in zip_path.parent.glob('*.mp4'):
             # Add file to the zip file
-            zipf.write(file)
+            zipf.write(file, file.name)
     
     print(f'All .mp4 files have been zipped into {zip_path}')
     # delete all .mp4 files
-    directory = Path(directory)
+    # breakpoint()
     for file in directory.glob('*.mp4'):
-        os.remove(file)
+        os.remove(file.absolute())
 
 
 def load_hdf5(dataset_path):

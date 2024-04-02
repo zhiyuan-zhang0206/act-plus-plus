@@ -220,14 +220,14 @@ class BimanualViperXEETask(base.Task):
         obs['qpos'] = self.get_qpos(physics)
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
-        obs['images'] = dict()
-        obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
-        obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
-        obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
-        obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
-        obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
-        obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
-        obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
+        # obs['images'] = dict()
+        # obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
+        # obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
+        # obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')
+        # obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
+        # obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
+        # obs['images']['left_wrist'] = physics.render(height=300, width=300, camera_id='left_wrist')
+        # obs['images']['right_wrist'] = physics.render(height=300, width=300, camera_id='right_wrist')
         # used in scripted policy to obtain starting pose
         obs['mocap_pose_left'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
         obs['mocap_pose_right'] = np.concatenate([physics.data.mocap_pos[1], physics.data.mocap_quat[1]]).copy()
@@ -377,7 +377,9 @@ class StirEETask(BimanualViperXEETask):
         spoon_start_idx = id2index(spoon_start_id)
         np.copyto(physics.data.qpos[spoon_start_idx : spoon_start_idx + 7], spoon_pose)
         # print(f"randomized cube position to {cube_position}")
-
+        object_info = {'object_num':2, 
+                       'object_poses':np.concatenate([cup_pose, spoon_pose])}
+        self.object_info = object_info
         super().initialize_episode(physics)
 
     @staticmethod
