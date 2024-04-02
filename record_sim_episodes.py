@@ -220,9 +220,11 @@ def main(args):
         # len(joint_traj) i.e. actions: max_timesteps
         # len(episode_replay) i.e. time steps: max_timesteps + 1
         max_timesteps = len(joint_traj)
-        progress_bar = trange(max_timesteps)
+        # progress_bar = trange(max_timesteps)
         while joint_traj:
             action = joint_traj.pop(0)
+            # print('action left', action[6])
+        
             ts = episode_replay.pop(0)
             # ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
@@ -232,10 +234,11 @@ def main(args):
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts.observation['images'][cam_name])
-            progress_bar.update(1)
-        progress_bar.close()
+            # progress_bar.update(1)
+        # progress_bar.close()
         # HDF5
         # t0 = time.time()
+        return
         data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
         data_path = data_path.as_posix()
