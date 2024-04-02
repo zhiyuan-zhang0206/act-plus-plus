@@ -44,19 +44,19 @@ def debug_visualize(ts, dataset_path, step):
     # image = ts.observation['images']['front_close']
     # image_path = dataset_path / f'{step}_front_close.png'
     # plt.imsave(image_path.as_posix(), image)
-    # print(f'Saved to {image_path}')
+    # logger.info(f'Saved to {image_path}')
     
     step += 1
     # if exit:
     #     import sys
     #     sys.exit()
 
-def configure_logging():
+def configure_logging(start_index, num_episodes):
     # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
     log_dir = Path(__file__).parent / 'logs'
     log_dir.mkdir(exist_ok=True)
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-    log_file = log_dir / f'{timestamp}.log'
+    log_file = log_dir / f'{timestamp}-index{start_index}.log'
     logger.add(log_file.as_posix())
 
 def log_qpos(qpos):
@@ -83,11 +83,12 @@ def main(args):
     Replay this joint trajectory (as action sequence) in sim_env, and record all observations.
     Save this episode of data, and continue to next episode of data collection.
     """
-    configure_logging()
     start_index = args['start_index']
+    logger.info(f'Start index: {start_index}')
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
+    configure_logging(start_index, num_episodes)
     # onscreen_render = args['onscreen_render']
     inject_noise = False
     # render_cam_name = 'top'
@@ -107,15 +108,15 @@ def main(args):
         policy_cls = StirPolicy
     else:
         raise NotImplementedError
-    print(f'Policy class: {policy_cls.__name__}')
+    logger.info(f'Policy class: {policy_cls.__name__}')
 
     success = []
     dataset_path = Path(os.path.join(dataset_dir, task_name))
     # clear this directory
-    for file in dataset_path.glob('*'):
-        os.remove(file)
+    # for file in dataset_path.glob('*'):
+    #     os.remove(file)
     for episode_idx in range(num_episodes):
-        print(f'Episode: {episode_idx+1}/{num_episodes}')
+        logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
         env = make_ee_sim_env(task_name)
         ts = env.reset()
@@ -131,7 +132,7 @@ def main(args):
             action = policy(ts)
             # log_action(action)
             # if last_action is not None:
-                # print(action == last_action)
+                # logger.info(action == last_action)
                 # pass
             ts = env.step(action)
             episode.append(ts)
@@ -141,9 +142,9 @@ def main(args):
         episode_return = np.sum([ts.reward for ts in episode[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode[1:]])
         if episode_max_reward == env.task.max_reward:
-            print(f"{episode_idx=} Successful, {episode_return=}")
+            logger.info(f"{episode_idx=} Successful, {episode_return=}")
         else:
-            print(f"{episode_idx=} Failed")
+            logger.info(f"{episode_idx=} Failed")
 
         joint_traj = [ts.observation['qpos'] for ts in episode]
         # replace gripper pose with gripper control
@@ -169,7 +170,8 @@ def main(args):
         episode_replay = [ts]
         step=0
         for t in trange(len(joint_traj)): # note: this will increase episode length by 1
-            # logger.info(f"Step: {step+1}/{episode_len}")
+            if step % 20 ==0:
+                logger.debug(f"Step: {step+1}/{episode_len}")
             # debug_visualize(ts, dataset_path, step)
             # log_env_state(ts.observation['env_state'])
             # log_qpos(ts.observation['qpos'])
@@ -182,10 +184,10 @@ def main(args):
         episode_max_reward = np.max([ts.reward for ts in episode_replay[1:]])
         if episode_max_reward == env.task.max_reward:
             success.append(1)
-            print(f"{episode_idx=} Successful, {episode_return=}")
+            logger.info(f"{episode_idx=} Successful, {episode_return=}")
         else:
             success.append(0)
-            print(f"{episode_idx=} Failed")
+            logger.info(f"{episode_idx=} Failed")
 
         # plt.close()
 
@@ -260,10 +262,10 @@ def main(args):
 
             for name, array in data_dict.items():
                 root[name][...] = array
-        # print(f'Saving: {time.time() - t0:.1f} secs\n')
+        # logger.info(f'Saving: {time.time() - t0:.1f} secs\n')
 
-    print(f'Saved to {dataset_dir}')
-    print(f'Success: {np.sum(success)} / {len(success)}')
+    logger.info(f'Saved to {dataset_dir}')
+    logger.info(f'Success: {np.sum(success)} / {len(success)}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
