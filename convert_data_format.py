@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+import sys
 
 
 from pathlib import Path
@@ -46,36 +48,42 @@ def process_data(path, save_dir):
         'rotation_delta_left': left_aa_diff,
         'world_vector_right': right_vector,
         'rotation_delta_right': right_aa_diff,
-        'image_left': left_image,
-        'image_right': right_image,
+        'image_left': (np.clip(left_image, 0, 255) ).astype(np.uint8),
+        'image_right': (np.clip(right_image, 0, 255) ).astype(np.uint8),
         'gripper_closedness_action_left': action_left,
         'gripper_closedness_action_right': action_right,
         'language_instruction': language_instruction,
         'language_embedding': language_to_embedding[language_instruction]
     }
-    # plot left_aa_diff in 3 subplots
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(3, 1)
-    for i in range(3):
-        axs[i].plot(left_vector[:, i])
-    # save
-    print(save_path.as_posix())
-    plt.savefig(save_path.with_suffix('.png'))
+    # save left_image as image
+    # convert to uint8
+    # left_image[0] = (np.clip(left_image[0], 0, 255) ).astype(np.uint8)
+    # plt.imshow(left_image[0])
+    # plt.savefig(save_path.with_suffix('.png'))
     
-    import sys
-    sys.exit()
+    # sys.exit()
+    # plot left_aa_diff in 3 subplots
+    # fig, axs = plt.subplots(3, 1)
+    # for i in range(3):
+    #     axs[i].plot(left_vector[:, i])
+    # # save
+    # print(save_path.as_posix())
+    # plt.savefig(save_path.with_suffix('.png'))
+    
+    # sys.exit()
     np.save(save_path, data)
     # print shapes
-    print(left_vector.shape, left_aa_diff.shape, 
-          right_vector.shape, right_aa_diff.shape,
-            left_image.shape, right_image.shape, 
-            action_left.shape, action_right.shape)
+    # print(left_vector.shape, left_aa_diff.shape, 
+    #       right_vector.shape, right_aa_diff.shape,
+    #         left_image.shape, right_image.shape, 
+    #         action_left.shape, action_right.shape)
     # print(0)
 
 from tqdm import tqdm
 def main():
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'sim_stir_scripted'
     save_dir = hdf5_directory.parent / 'processed_data'
+    print(f'saving to {save_dir}')
     for p in tqdm(list(hdf5_directory.glob('*.hdf5'))):
         process_data(p, save_dir)
         
@@ -85,13 +93,13 @@ def main():
     train_path.mkdir(exist_ok=True, parents=True)
     test_path.mkdir(exist_ok=True, parents=True)
     for i, p in enumerate(save_dir.glob('*.npy')):
-        if i % 5 == 0:
+        if i % 10 == 0:
             p.rename(test_path / p.name)
         else:
             p.rename(train_path / p.name)
 
     # all move to tf datasets
-    ds_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/0.1.0')
+    ds_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/data')
     ds_dir.mkdir(exist_ok=True, parents=True)
     for p in train_path.glob('*.npy'):
         

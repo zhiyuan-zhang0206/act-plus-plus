@@ -1,12 +1,12 @@
 """bimanual dataset."""
 
-from . import bimanual_dataset_builder
+from . import bimanual_zzy_dataset_builder
 import tensorflow_datasets as tfds
 
 class BimanualTest(tfds.testing.DatasetBuilderTestCase):
   """Tests for bimanual dataset."""
   # TODO(bimanual):
-  DATASET_CLASS = bimanual_dataset_builder.Builder
+  DATASET_CLASS = bimanual_zzy_dataset_builder.Builder
   SPLITS = {
       'train': 3,  # Number of fake train example
       'test': 1,  # Number of fake test example
