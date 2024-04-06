@@ -220,7 +220,7 @@ class BimanualViperXEETask(base.Task):
         obs['qpos'] = self.get_qpos(physics)
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
-        # obs['images'] = dict()
+        obs['images'] = dict()
         # obs['images']['horizontal'] = physics.render(height=300, width=300, camera_id='horizontal')
         # obs['images']['angle'] = physics.render(height=300, width=300, camera_id='angle')
         # obs['images']['front_close'] = physics.render(height=300, width=300, camera_id='front_close')

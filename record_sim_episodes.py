@@ -76,6 +76,8 @@ def log_env_state(state):
     logger.info(f"Spoon : {' '.join(f'{i: .3f}' for i in state[7:10])}, {' '.join(f'{i: .3f}' for i in state[10:14])}")
 from tqdm import trange
 def main(args):
+    import random
+    random.seed(1)
     """
     Generate demonstration data in simulation.
     First rollout the policy (defined in ee space) in ee_sim_env. Obtain the joint trajectory.
@@ -89,22 +91,14 @@ def main(args):
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
     configure_logging(start_index, num_episodes)
-    # onscreen_render = args['onscreen_render']
     inject_noise = False
-    # render_cam_name = 'top'
 
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir, exist_ok=True)
 
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
-    if task_name == 'sim_transfer_cube_scripted':
-        policy_cls = PickAndTransferPolicy
-    elif task_name == 'sim_insertion_scripted':
-        policy_cls = InsertionPolicy
-    elif task_name == 'sim_transfer_cube_scripted_mirror':
-        policy_cls = PickAndTransferPolicy
-    elif task_name == 'sim_stir_scripted':
+    if task_name == 'sim_stir_scripted':
         policy_cls = StirPolicy
     else:
         raise NotImplementedError
@@ -112,9 +106,7 @@ def main(args):
 
     success = []
     dataset_path = Path(os.path.join(dataset_dir, task_name))
-    # clear this directory
-    # for file in dataset_path.glob('*'):
-    #     os.remove(file)
+    
     for episode_idx in range(num_episodes):
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
@@ -125,19 +117,9 @@ def main(args):
 
         # last_action = None
         for step in trange(episode_len):
-            # logger.info(f"Step: {step+1}/{episode_len}")
-            # debug_visualize_exit(ts, dataset_path, step)
-            # log_env_state(ts.observation['env_state'])
-            # log_qpos(ts.observation['qpos'])
             action = policy(ts)
-            # log_action(action)
-            # if last_action is not None:
-                # logger.info(action == last_action)
-                # pass
             ts = env.step(action)
             episode.append(ts)
-            # last_action = action
-        # debug_visualize_exit(ts, dataset_path, exit=True)
 
         episode_return = np.sum([ts.reward for ts in episode[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode[1:]])
@@ -146,16 +128,14 @@ def main(args):
         else:
             logger.info(f"{episode_idx=} Failed")
 
-        joint_traj = [ts.observation['qpos'] for ts in episode]
+        joint_trajectory = [ts.observation['qpos'] for ts in episode]
         # replace gripper pose with gripper control
-        gripper_ctrl_traj = [ts.observation['gripper_ctrl'] for ts in episode]
-        for joint, ctrl in zip(joint_traj, gripper_ctrl_traj):
+        gripper_ctrl_trajectory = [ts.observation['gripper_ctrl'] for ts in episode]
+        for joint, ctrl in zip(joint_trajectory, gripper_ctrl_trajectory):
             left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[0])
             right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[2])
             joint[6] = left_ctrl
             joint[6+7] = right_ctrl
-
-        # subtask_info = episode[0].observation['env_state'].copy() # box pose at step 0
 
         # clear unused variables
         object_info = env.task.object_info
@@ -164,32 +144,14 @@ def main(args):
         del policy
 
         env = make_sim_env(task_name, object_info=object_info)
-        # BOX_POSE[0] = subtask_info # make sure the sim_env has the same object configurations as ee_sim_env
         ts = env.reset()
-
         episode_replay = [ts]
         step=0
-        for t in trange(len(joint_traj)): # note: this will increase episode length by 1
-            if step % 20 ==0:
-                logger.debug(f"Step: {step+1}/{episode_len}")
-            # debug_visualize(ts, dataset_path, step)
-            # log_env_state(ts.observation['env_state'])
-            # log_qpos(ts.observation['qpos'])
-            action = joint_traj[t]
+        for t in trange(len(joint_trajectory)): # note: this will increase episode length by 1
+            action = joint_trajectory[t]
             ts = env.step(action)
             step+=1
             episode_replay.append(ts)
-
-        episode_return = np.sum([ts.reward for ts in episode_replay[1:]])
-        episode_max_reward = np.max([ts.reward for ts in episode_replay[1:]])
-        if episode_max_reward == env.task.max_reward:
-            success.append(1)
-            logger.info(f"{episode_idx=} Successful, {episode_return=}")
-        else:
-            success.append(0)
-            logger.info(f"{episode_idx=} Failed")
-
-        # plt.close()
 
         """
         For each timestep:
@@ -214,17 +176,15 @@ def main(args):
 
         # because the replaying, there will be eps_len + 1 actions and eps_len + 2 timesteps
         # truncate here to be consistent
-        joint_traj = joint_traj[:-1]
+        joint_trajectory = joint_trajectory[:-1]
         episode_replay = episode_replay[:-1]
 
         # len(joint_traj) i.e. actions: max_timesteps
         # len(episode_replay) i.e. time steps: max_timesteps + 1
-        max_timesteps = len(joint_traj)
+        max_timesteps = len(joint_trajectory)
         # progress_bar = trange(max_timesteps)
-        while joint_traj:
-            action = joint_traj.pop(0)
-            # print('action left', action[6])
-        
+        while joint_trajectory:
+            action = joint_trajectory.pop(0)
             ts = episode_replay.pop(0)
             # ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
@@ -234,11 +194,8 @@ def main(args):
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts.observation['images'][cam_name])
-            # progress_bar.update(1)
-        # progress_bar.close()
+
         # HDF5
-        # t0 = time.time()
-        return
         data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
         data_path = data_path.as_posix()
@@ -253,19 +210,14 @@ def main(args):
                                          chunks=(1, 300, 300, 3), )
             # compression='gzip',compression_opts=2,)
             # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
-            # qpos = obs.create_dataset('qpos', (max_timesteps, 14))
-            # qvel = obs.create_dataset('qvel', (max_timesteps, 14))
-            # action = root.create_dataset('action', (max_timesteps, 14))
             obs.create_dataset('qpos', (max_timesteps, 14))
             obs.create_dataset('qvel', (max_timesteps, 14))
             obs.create_dataset('left_pose', (max_timesteps, 7))
             obs.create_dataset('right_pose', (max_timesteps, 7))
-            # obs.craete_dataset()
             root.create_dataset('action', (max_timesteps, 14))
 
             for name, array in data_dict.items():
                 root[name][...] = array
-        # logger.info(f'Saving: {time.time() - t0:.1f} secs\n')
 
     logger.info(f'Saved to {dataset_dir}')
     logger.info(f'Success: {np.sum(success)} / {len(success)}')
