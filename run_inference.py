@@ -1,15 +1,17 @@
 import time
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # os.environ['MUJOCO_GL'] = 'egl'
-os.environ['MUJOCO_GL'] = 'osmesa'
-# os.environ['PYOPENGL_PLATFORM'] = 'egl'
+# os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 # os.environ['DISPLAY'] = 'egl'
 # =:0
 import numpy as np
 import argparse
 # import matplotlib.pyplot as plt
 import h5py
-
+import sys
+sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main/models')
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env, BOX_POSE
@@ -76,13 +78,50 @@ def log_env_state(state):
     logger.info(f"Spoon : {' '.join(f'{i: .3f}' for i in state[7:10])}, {' '.join(f'{i: .3f}' for i in state[10:14])}")
 
 class BimanualModelPolicy:
-    def __init__(self, language_instruction):
+    def __init__(self, 
+                 ckpt_path=None,
+                ):
+        num_action_tokens = 11
+        layer_size = 256
+        vocab_size = 512
+        sequence_length = 15
+        num_image_tokens = 81
+        import rt1
+        from rt1_bimanual_inference_example import RT1BimanualPolicy
+        model = rt1.BimanualRT1(
+            num_image_tokens=num_image_tokens,
+            num_action_tokens=num_action_tokens,
+            layer_size=layer_size,
+            vocab_size=vocab_size,
+            # Use token learner to reduce tokens per image to 81.
+            use_token_learner=True,
+            # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
+            world_vector_range=(-2.0, 2.0),
+            )   
+        self.policy = RT1BimanualPolicy(
+            checkpoint_path=ckpt_path,
+            model=model,
+            seqlen=sequence_length,
+        )
+    def set_language_instruction(self, language_instruction:str):
+        
+        import tensorflow_hub as hub
+        embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
         self.language_instruction = language_instruction
-        self.model = None
-
+        self.language_instruction_embedding = embed([language_instruction])[0]
+        del embed
+        
     def __call__(self, ts):
         # action = np.zeros(14)
-        action = np.random.uniform(0, 1, 14)
+        observation = ts.observation
+        # breakpoint()
+        policy_input = {
+            "image_left": observation['images']['left_angle'],
+            "image_right": observation['images']['right_angle'],
+            "natural_language_embedding": self.language_instruction_embedding,
+        }
+        action = self.policy.action(policy_input)
+        
         return action
 
 from tqdm import trange
@@ -98,9 +137,12 @@ def main(args):
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir, exist_ok=True)
 
+    ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/coordinater+trans,data[:10]'
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
-    policy_class = BimanualModelPolicy
+    
+    policy = BimanualModelPolicy(ckpt_path)
+    policy.set_language_instruction(StirPolicy.language_instruction)
     # logger.info(f'Policy class: {policy_class.__name__}')
 
     success = []
@@ -110,22 +152,23 @@ def main(args):
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
         env_ee = make_ee_sim_env(task_name)
-        ts = env_ee.reset()
-        episode = [ts]
-        policy = policy_class()
+        object_info = env_ee.task.object_info
+        env_q = make_sim_env(task_name, object_info=object_info)
+        ts_ee = env_ee.reset()
+        episode = [ts_ee]
 
         # last_action = None
         for step in trange(episode_len):
-            action = policy(ts)
-            ts = env_ee.step(action)
-            episode.append(ts)
+            action = policy(ts_ee)
+            ts_ee = env_ee.step(action)
+            episode.append(ts_ee)
 
-        episode_return = np.sum([ts.reward for ts in episode[1:]])
-        episode_max_reward = np.max([ts.reward for ts in episode[1:]])
-        if episode_max_reward == env_ee.task.max_reward:
-            logger.info(f"{episode_idx=} Successful, {episode_return=}")
-        else:
-            logger.info(f"{episode_idx=} Failed")
+        # episode_return = np.sum([ts.reward for ts in episode[1:]])
+        # episode_max_reward = np.max([ts.reward for ts in episode[1:]])
+        # if episode_max_reward == env_ee.task.max_reward:
+        #     logger.info(f"{episode_idx=} Successful, {episode_return=}")
+        # else:
+        #     logger.info(f"{episode_idx=} Failed")
 
         joint_trajectory = [ts.observation['qpos'] for ts in episode]
         # replace gripper pose with gripper control
@@ -137,12 +180,10 @@ def main(args):
             joint[6+7] = right_ctrl
 
         # clear unused variables
-        object_info = env_ee.task.object_info
         del env_ee
         del episode
         # del policy
 
-        env_q = make_sim_env(task_name, object_info=object_info)
         ts = env_q.reset()
         episode_replay = [ts]
         step=0
@@ -190,8 +231,8 @@ def main(args):
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
-            if hasattr(policy_class, 'language_instruction'):
-                root.attrs['language_instruction'] = policy_class.language_instruction
+            # if hasattr(policy_class, 'language_instruction'):
+            #     root.attrs['language_instruction'] = policy_class.language_instruction
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in camera_names:
