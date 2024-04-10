@@ -1,8 +1,8 @@
 import time
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # os.environ['MUJOCO_GL'] = 'egl'
-# os.environ['MUJOCO_GL'] = 'osmesa'
+os.environ['MUJOCO_GL'] = 'osmesa'
 # os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 # os.environ['DISPLAY'] = 'egl'
 # =:0
@@ -81,6 +81,10 @@ class BimanualModelPolicy:
     def __init__(self, 
                  ckpt_path=None,
                 ):
+        instruction_to_embedding_path = Path('/home/users/ghc/zzy/USE/string_to_embedding.npy')
+        self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
+        
+        logger.debug('loading model')
         num_action_tokens = 11
         layer_size = 256
         vocab_size = 512
@@ -103,13 +107,16 @@ class BimanualModelPolicy:
             model=model,
             seqlen=sequence_length,
         )
+        logger.debug('model loaded')
+    
     def set_language_instruction(self, language_instruction:str):
         
-        import tensorflow_hub as hub
-        embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
+        # import tensorflow_hub as hub
+        # embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
         self.language_instruction = language_instruction
-        self.language_instruction_embedding = embed([language_instruction])[0]
-        del embed
+        self.language_instruction_embedding = self.instruction_to_embedding[language_instruction]
+        # self.language_instruction_embedding = embed([language_instruction])[0]
+        # del embed
         
     def __call__(self, ts):
         # action = np.zeros(14)
@@ -123,6 +130,15 @@ class BimanualModelPolicy:
         action = self.policy.action(policy_input)
         
         return action
+
+def extract_q_pos(observation):
+    action_q = observation['qpos']
+    ctrl = observation['gripper_ctrl']
+    left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[0])
+    right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[2])
+    action_q[6] = left_ctrl
+    action_q[6+7] = right_ctrl
+    return action_q
 
 from tqdm import trange
 def main(args):
@@ -144,24 +160,25 @@ def main(args):
     policy = BimanualModelPolicy(ckpt_path)
     policy.set_language_instruction(StirPolicy.language_instruction)
     # logger.info(f'Policy class: {policy_class.__name__}')
-
+    # return
     success = []
     dataset_path = Path(os.path.join(dataset_dir, task_name))
     
     for episode_idx in range(num_episodes):
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
-
         env_ee = make_ee_sim_env(task_name)
+        ts_ee = env_ee.reset() 
         object_info = env_ee.task.object_info
         env_q = make_sim_env(task_name, object_info=object_info)
-        ts_ee = env_ee.reset()
-        episode = [ts_ee]
+        episode_ee = [ts_ee]
 
         # last_action = None
         for step in trange(episode_len):
-            action = policy(ts_ee)
-            ts_ee = env_ee.step(action)
-            episode.append(ts_ee)
+            action_q = extract_q_pos(ts_ee.observation)
+            ts_q = env_q.step(action_q)
+            action_ee = policy(ts_q)
+            ts_ee = env_ee.step(action_ee)
+            # episode_ee.append(ts_ee)
 
         # episode_return = np.sum([ts.reward for ts in episode[1:]])
         # episode_max_reward = np.max([ts.reward for ts in episode[1:]])
@@ -229,25 +246,25 @@ def main(args):
         data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
         data_path = data_path.as_posix()
-        with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
-            root.attrs['sim'] = True
-            # if hasattr(policy_class, 'language_instruction'):
-            #     root.attrs['language_instruction'] = policy_class.language_instruction
-            obs = root.create_group('observations')
-            image = obs.create_group('images')
-            for cam_name in camera_names:
-                _ = image.create_dataset(cam_name, (max_timesteps, 300, 300, 3), dtype='uint8',
-                                         chunks=(1, 300, 300, 3), )
-            # compression='gzip',compression_opts=2,)
-            # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
-            obs.create_dataset('qpos', (max_timesteps, 14))
-            obs.create_dataset('qvel', (max_timesteps, 14))
-            obs.create_dataset('left_pose', (max_timesteps, 7))
-            obs.create_dataset('right_pose', (max_timesteps, 7))
-            root.create_dataset('action', (max_timesteps, 14))
+        # with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
+        #     root.attrs['sim'] = True
+        #     # if hasattr(policy_class, 'language_instruction'):
+        #     #     root.attrs['language_instruction'] = policy_class.language_instruction
+        #     obs = root.create_group('observations')
+        #     image = obs.create_group('images')
+        #     for cam_name in camera_names:
+        #         _ = image.create_dataset(cam_name, (max_timesteps, 300, 300, 3), dtype='uint8',
+        #                                  chunks=(1, 300, 300, 3), )
+        #     # compression='gzip',compression_opts=2,)
+        #     # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
+        #     obs.create_dataset('qpos', (max_timesteps, 14))
+        #     obs.create_dataset('qvel', (max_timesteps, 14))
+        #     obs.create_dataset('left_pose', (max_timesteps, 7))
+        #     obs.create_dataset('right_pose', (max_timesteps, 7))
+        #     root.create_dataset('action', (max_timesteps, 14))
 
-            for name, array in data_dict.items():
-                root[name][...] = array
+        #     for name, array in data_dict.items():
+        #         root[name][...] = array
 
     logger.info(f'Saved to {dataset_dir}')
     logger.info(f'Success: {np.sum(success)} / {len(success)}')
