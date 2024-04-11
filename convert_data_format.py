@@ -17,7 +17,7 @@ def process_data(path, save_dir):
         language_instruction = root.attrs['language_instruction']
         left_pose = root['/observations/left_pose'][()][START_FRAME:]
         left_vector = left_pose[:, :3]
-        left_quaternion = left_pose[:, 3:]
+        left_quaternion = left_pose[:, 3:] / np.linalg.norm(left_pose[:, 3:], axis=1, keepdims=True)
         left_rpy = R.from_quat(left_quaternion).as_euler('zyx')
         # left_aa = np.zeros((left_quaternion.shape[0], 3))
         # for i in range(left_quaternion.shape[0]):
@@ -28,8 +28,10 @@ def process_data(path, save_dir):
 
         right_pose = root['/observations/right_pose'][()][START_FRAME:]
         right_vector = right_pose[:, :3]
-        right_quaternion = right_pose[:, 3:]
+        right_quaternion = right_pose[:, 3:] / np.linalg.norm(right_pose[:, 3:], axis=1, keepdims=True)
         right_rpy = R.from_quat(right_quaternion).as_euler('zyx')
+        right_quaternion_reconstructed = R.from_euler('zyx', right_rpy).as_quat()
+        print(np.linalg.norm(right_quaternion - right_quaternion_reconstructed))
         # right_aa = np.zeros((right_quaternion.shape[0], 3))
         # for i in range(right_quaternion.shape[0]):
         #     right_aa[i] = Quaternion(right_quaternion[i]).axis * Quaternion(right_quaternion[i]).angle
@@ -43,7 +45,7 @@ def process_data(path, save_dir):
         # in original data, 1 For open and 0 for close. Here we change to 1 for close and 0 for open
         action_left = np.clip(1 - action[:, 6], 0, 1 )
         action_right = np.clip(1 - action[:, 13], 0, 1 )
-    
+    return
     save_path = save_dir / path.stem
     data = {
         'world_vector_left': left_vector,
