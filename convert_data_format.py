@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import sys
 
-
+from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 import numpy as np
 import h5py
@@ -18,22 +18,24 @@ def process_data(path, save_dir):
         left_pose = root['/observations/left_pose'][()][START_FRAME:]
         left_vector = left_pose[:, :3]
         left_quaternion = left_pose[:, 3:]
-        left_aa = np.zeros((left_quaternion.shape[0], 3))
-        for i in range(left_quaternion.shape[0]):
-            left_aa[i] = Quaternion(left_quaternion[i]).axis * Quaternion(left_quaternion[i]).angle
+        left_rpy = R.from_quat(left_quaternion).as_euler('zyx')
+        # left_aa = np.zeros((left_quaternion.shape[0], 3))
+        # for i in range(left_quaternion.shape[0]):
+        #     left_aa[i] = Quaternion(left_quaternion[i]).axis * Quaternion(left_quaternion[i]).angle
 
-        left_aa_diff = np.diff(left_aa, axis=0)
-        left_aa_diff = np.concatenate((np.zeros((1, 3)), left_aa_diff), axis=0)
+        # left_aa_diff = np.diff(left_aa, axis=0)
+        # left_aa_diff = np.concatenate((np.zeros((1, 3)), left_aa_diff), axis=0)
 
         right_pose = root['/observations/right_pose'][()][START_FRAME:]
         right_vector = right_pose[:, :3]
         right_quaternion = right_pose[:, 3:]
-        right_aa = np.zeros((right_quaternion.shape[0], 3))
-        for i in range(right_quaternion.shape[0]):
-            right_aa[i] = Quaternion(right_quaternion[i]).axis * Quaternion(right_quaternion[i]).angle
+        right_rpy = R.from_quat(right_quaternion).as_euler('zyx')
+        # right_aa = np.zeros((right_quaternion.shape[0], 3))
+        # for i in range(right_quaternion.shape[0]):
+        #     right_aa[i] = Quaternion(right_quaternion[i]).axis * Quaternion(right_quaternion[i]).angle
         
-        right_aa_diff = np.diff(right_aa, axis=0)
-        right_aa_diff = np.concatenate((np.zeros((1, 3)), right_aa_diff), axis=0)
+        # right_aa_diff = np.diff(right_aa, axis=0)
+        # right_aa_diff = np.concatenate((np.zeros((1, 3)), right_aa_diff), axis=0)
         
         left_image = root['/observations/images/left_angle'][()][START_FRAME:]
         right_image = root['/observations/images/right_angle'][()][START_FRAME:]
@@ -45,9 +47,9 @@ def process_data(path, save_dir):
     save_path = save_dir / path.stem
     data = {
         'world_vector_left': left_vector,
-        'rotation_delta_left': left_aa_diff,
+        'rotation_delta_left': left_rpy, #left_aa_diff,
         'world_vector_right': right_vector,
-        'rotation_delta_right': right_aa_diff,
+        'rotation_delta_right': right_rpy, #right_aa_diff,
         'image_left': (np.clip(left_image, 0, 255) ).astype(np.uint8),
         'image_right': (np.clip(right_image, 0, 255) ).astype(np.uint8),
         'gripper_closedness_action_left': action_left,
