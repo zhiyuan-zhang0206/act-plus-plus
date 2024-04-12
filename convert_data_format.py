@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import h5py
 from pyquaternion import Quaternion
-START_FRAME = 250
+START_FRAME = 300
 
 language_embedding_path = Path(__file__).parent.parent / 'USE/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
@@ -15,29 +15,17 @@ def process_data(path, save_dir):
     save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
-        left_pose = root['/observations/left_pose'][()][START_FRAME:]
-        left_vector = left_pose[:, :3]
+        left_pose = root['/observations/left_pose'][()][:]
+        left_vector_diff = np.diff(left_pose[:, :3], axis=0)[START_FRAME-1:]
         left_quaternion = left_pose[:, 3:] / np.linalg.norm(left_pose[:, 3:], axis=1, keepdims=True)
-        left_rpy = R.from_quat(left_quaternion).as_euler('zyx')
-        # left_aa = np.zeros((left_quaternion.shape[0], 3))
-        # for i in range(left_quaternion.shape[0]):
-        #     left_aa[i] = Quaternion(left_quaternion[i]).axis * Quaternion(left_quaternion[i]).angle
+        left_quaternion_diffs = R.from_quat(left_quaternion[1:]) * R.from_quat(left_quaternion[:-1]).inv()
+        left_rpy = left_quaternion_diffs.as_euler('zyx')[START_FRAME-1:]
 
-        # left_aa_diff = np.diff(left_aa, axis=0)
-        # left_aa_diff = np.concatenate((np.zeros((1, 3)), left_aa_diff), axis=0)
-
-        right_pose = root['/observations/right_pose'][()][START_FRAME:]
-        right_vector = right_pose[:, :3]
+        right_pose = root['/observations/right_pose'][()][:]
+        right_vector_diff = np.diff(right_pose[:, :3], axis=0)[START_FRAME-1:]
         right_quaternion = right_pose[:, 3:] / np.linalg.norm(right_pose[:, 3:], axis=1, keepdims=True)
-        right_rpy = R.from_quat(right_quaternion).as_euler('zyx')
-        right_quaternion_reconstructed = R.from_euler('zyx', right_rpy).as_quat()
-        print(np.linalg.norm(right_quaternion - right_quaternion_reconstructed))
-        # right_aa = np.zeros((right_quaternion.shape[0], 3))
-        # for i in range(right_quaternion.shape[0]):
-        #     right_aa[i] = Quaternion(right_quaternion[i]).axis * Quaternion(right_quaternion[i]).angle
-        
-        # right_aa_diff = np.diff(right_aa, axis=0)
-        # right_aa_diff = np.concatenate((np.zeros((1, 3)), right_aa_diff), axis=0)
+        right_quaternion_diffs = R.from_quat(right_quaternion[1:]) * R.from_quat(right_quaternion[:-1]).inv()
+        right_rpy = right_quaternion_diffs.as_euler('zyx')[START_FRAME-1:]
         
         left_image = root['/observations/images/left_angle'][()][START_FRAME:]
         right_image = root['/observations/images/right_angle'][()][START_FRAME:]
@@ -45,12 +33,12 @@ def process_data(path, save_dir):
         # in original data, 1 For open and 0 for close. Here we change to 1 for close and 0 for open
         action_left = np.clip(1 - action[:, 6], 0, 1 )
         action_right = np.clip(1 - action[:, 13], 0, 1 )
-    return
+    # return
     save_path = save_dir / path.stem
     data = {
-        'world_vector_left': left_vector,
+        'world_vector_left': left_vector_diff,
         'rotation_delta_left': left_rpy, #left_aa_diff,
-        'world_vector_right': right_vector,
+        'world_vector_right': right_vector_diff,
         'rotation_delta_right': right_rpy, #right_aa_diff,
         'image_left': (np.clip(left_image, 0, 255) ).astype(np.uint8),
         'image_right': (np.clip(right_image, 0, 255) ).astype(np.uint8),
