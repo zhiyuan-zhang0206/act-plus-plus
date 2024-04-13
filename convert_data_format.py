@@ -48,6 +48,8 @@ def process_data(path, save_dir, debug=False):
         'language_embedding': language_to_embedding[language_instruction]
     }
     if debug:
+        for i in range(data['world_vector_left'].shape[0]):
+            print(data['world_vector_right'][i, 0])
         for k, v in data.items():
             if isinstance(v, np.ndarray):
                 print(k, v.shape)
