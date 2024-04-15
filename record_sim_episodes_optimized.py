@@ -9,72 +9,14 @@ import numpy as np
 import argparse
 # import matplotlib.pyplot as plt
 import h5py
-
+import dm_control
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
-from sim_env import make_sim_env, BOX_POSE
-from scripted_policy import PickAndTransferPolicy, InsertionPolicy, StirPolicy
+from sim_env import make_sim_env
+from scripted_policy import StirPolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
 from loguru import logger
-# import IPython
-# e = IPython.embed
-
-# python3 record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
-# python3 record_sim_episodes.py --task_name sim_stir_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
-
-image_idx = 0
-debug = False
-def debug_visualize(ts, dataset_path, step):
-
-    
-    # save image
-    # global image_idx
-    # step = step
-    if step % 20 != 0:
-        return
-
-    for key in ['left_angle', 'right_angle']:
-        image = ts.observation['images'][key]
-        image_path = dataset_path / f'{step}_{key}.png'
-        plt.imsave(image_path.as_posix(), image)
-    # image = ts.observation['images']['angle']
-    # image_path = dataset_path / f'{step}_angle.png'
-    # plt.imsave(image_path.as_posix(), image)
-    # image = ts.observation['images']['front_close']
-    # image_path = dataset_path / f'{step}_front_close.png'
-    # plt.imsave(image_path.as_posix(), image)
-    # logger.info(f'Saved to {image_path}')
-    
-    step += 1
-    # if exit:
-    #     import sys
-    #     sys.exit()
-
-def configure_logging(start_index, num_episodes):
-    # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
-    log_dir = Path(__file__).parent / 'logs'
-    log_dir.mkdir(exist_ok=True)
-    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-    log_file = log_dir / f'{timestamp}-index{start_index}.log'
-    logger.add(log_file.as_posix())
-
-def log_qpos(qpos):
-    logger.info('QPose')
-    logger.info(f"Left : {qpos[6]: .3f}, q: {' '.join(f'{i: .3f}' for i in qpos[0:7])}")
-    logger.info(f"Right: {qpos[13]: .3f}, q: {' '.join(f'{i: .3f}' for i in qpos[6:13])}")
-
-def log_action(action):
-    # 1 means open and 0 means close
-    logger.info('Action')
-    logger.info(f"Left : {action[7]: .3f}, xyz: {' '.join(f'{i: .3f}' for i in action[0:3])}, quat: {' '.join(f'{i: .3f}' for i in action[3:7])}")
-    logger.info(f"Right: {action[15]: .3f}, xyz: {' '.join(f'{i: .3f}' for i in action[7:10])}, quat: {' '.join(f'{i: .3f}' for i in action[10:14])}")
-
-def log_env_state(state):
-    logger.info('Env state')
-    logger.info(f"Cup   : {' '.join(f'{i: .3f}' for i in state[0:3])}, {' '.join(f'{i: .3f}' for i in state[3:7])}")
-    logger.info(f"Spoon : {' '.join(f'{i: .3f}' for i in state[7:10])}, {' '.join(f'{i: .3f}' for i in state[10:14])}")
-    
     
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
@@ -100,7 +42,6 @@ def main(args):
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
-    configure_logging(start_index, num_episodes)
     inject_noise = False
 
     if not os.path.isdir(dataset_dir):
@@ -116,11 +57,11 @@ def main(args):
 
     success = []
     dataset_path = Path(os.path.join(dataset_dir, task_name))
-    
-    for episode_idx in range(num_episodes):
+    episode_idx = 0
+    while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
-        policy = policy_cls(inject_noise)
+        script_policy = policy_cls(inject_noise)
         
         env_ee = make_ee_sim_env(task_name)
         ts_ee = env_ee.reset()
@@ -132,15 +73,20 @@ def main(args):
         ts_q = env_q.reset()
         episode_q = [ts_q]
         # episode_len = 400
-        for step in trange(episode_len):
-            action_ee = policy(ts_ee)
-            ts_ee = env_ee.step(action_ee)
-            episode_ee.append(ts_ee)
-            
-            action_q = make_action_q(ts_ee.observation)
-            ts_q = env_q.step(action_q)
-            episode_q.append(ts_q)
-
+        try:
+            for step in trange(episode_len):
+                action_ee = script_policy(ts_ee)
+                ts_ee = env_ee.step(action_ee)
+                episode_ee.append(ts_ee)
+                
+                if step == 250:
+                    env_q.task.start_render()
+                action_q = make_action_q(ts_ee.observation)
+                ts_q = env_q.step(action_q)
+                episode_q.append(ts_q)
+        except dm_control.rl.control.PhysicsError:
+            logger.info('Physics error, continue.')
+            continue
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
         
 
@@ -210,6 +156,7 @@ def main(args):
 
             for name, array in data_dict.items():
                 root[name][...] = array
+        episode_idx += 1
 
     logger.info(f'Saved to {dataset_dir}')
     logger.info(f'Success: {np.sum(success)} / {len(success)}')

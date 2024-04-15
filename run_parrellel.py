@@ -4,8 +4,8 @@ def run_command(command):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return process
 
-parrellel_number = 1
-total_number = 50
+parrellel_number = 5
+total_number = 500
 overall_start_index = 0
 dataset_path = Path('/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted')
 if dataset_path.exists() and overall_start_index == 0:
@@ -17,7 +17,7 @@ commands = []
 for i in range(parrellel_number):
     each_num = total_number//parrellel_number
     start_index = i * each_num + overall_start_index
-    command = f'python record_sim_episodes.py --num_episodes {each_num} --start_index {start_index}'
+    command = f'python record_sim_episodes_optimized.py --num_episodes {each_num} --start_index {start_index}'
     commands.append(command)
 
 processes = [run_command(command) for command in commands]
