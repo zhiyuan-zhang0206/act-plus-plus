@@ -146,3 +146,4 @@ ckpts/
 *.npy
 play.ipynb
 generated_data/
+evaluation_data/

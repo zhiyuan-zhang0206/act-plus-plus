@@ -91,9 +91,14 @@ class BimanualModelPolicy:
         return np.concatenate([new_location, new_quaternion])
     
     def generate_action_buffer(self, current_pose, new_pose):
+        diff = new_pose - current_pose
+        actions = []
         for i in range(self.frame_interval):
-            fraction = i / self.frame_interval
-    
+            fraction = (i+1) / self.frame_interval
+            action = current_pose + diff * fraction
+            actions.append(action)
+        return actions
+            
     def __call__(self, ts):
         # action = np.zeros(14)
         observation = ts.observation
@@ -111,10 +116,9 @@ class BimanualModelPolicy:
             current_pose = np.concatenate([observation['left_pose'], observation['right_pose']])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             self.action_buffer = self.generate_action_buffer(current_pose, new_pose)
-        else:
-            return self.action_buffer.pop(0)
+        
         self.step += 1
-        return action
+        return self.action_buffer.pop(0)
 
     def reset(self, ):
         self.images_left = []
@@ -135,14 +139,14 @@ random.seed(1)
 def main(args):
     
     task_name = args['task_name']
-    dataset_dir = args['dataset_dir']
+    save_dir = args['save_dir']
     num_episodes = args['num_episodes']
     # inject_noise = False
     RENDER_START_FRAME = 250
     MODEL_POLICY_START_FRAME = 260
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
-    if not os.path.isdir(dataset_dir):
-        os.makedirs(dataset_dir, exist_ok=True)
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
     if task_name == 'sim_stir_scripted':
@@ -154,7 +158,7 @@ def main(args):
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
-    dataset_path = Path(os.path.join(dataset_dir, task_name))
+    save_path = Path(os.path.join(save_dir, task_name))
     episode_idx = 0
     while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
@@ -177,7 +181,8 @@ def main(args):
                 if step == RENDER_START_FRAME:
                     env_q.task.start_render()
                 if step == MODEL_POLICY_START_FRAME:
-                    policy = model_policy
+                    # policy = model_policy
+                    pass
                 action_ee = policy(ts_q)
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
@@ -189,18 +194,6 @@ def main(args):
             logger.info('Physics error, continue.')
             continue
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
-        
-
-        """
-        For each timestep:
-        observations
-        - images
-            - each_cam_name     (300, 300, 3) 'uint8'
-        - qpos                  (14,)         'float64'
-        - qvel                  (14,)         'float64'
-
-        action                  (14,)         'float64'
-        """
 
         data_dict = {
             '/observations/qpos': [],
@@ -212,13 +205,7 @@ def main(args):
         for cam_name in camera_names:
             data_dict[f'/observations/images/{cam_name}'] = []
 
-        # because the replaying, there will be eps_len + 1 actions and eps_len + 2 timesteps
-        # truncate here to be consistent
         joint_trajectory = joint_trajectory[:-1]
-        # episode = episode[:-1]
-
-        # len(joint_traj) i.e. actions: max_timesteps
-        # len(episode_replay) i.e. time steps: max_timesteps + 1
         max_timesteps = len(joint_trajectory)
         print(f'max timesteps: {max_timesteps}')
         # progress_bar = trange(max_timesteps)
@@ -235,7 +222,7 @@ def main(args):
                 data_dict[f'/observations/images/{cam_name}'].append(ts_q.observation['images'][cam_name])
 
         # HDF5
-        data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
+        data_path = save_path / f'episode_{episode_idx}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
@@ -259,13 +246,13 @@ def main(args):
                 root[name][...] = array
         episode_idx += 1
 
-    logger.info(f'Saved to {dataset_dir}')
+    logger.info(f'Saved to {save_dir}')
     # logger.info(f'Success: {np.sum(success)} / {len(success)}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
-    parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
+    parser.add_argument('--save_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'evaluation_data').as_posix())
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
