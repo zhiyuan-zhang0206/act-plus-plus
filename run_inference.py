@@ -10,8 +10,7 @@ import numpy as np
 import argparse
 # import matplotlib.pyplot as plt
 import h5py
-import sys
-sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main/models')
+
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env, BOX_POSE
@@ -90,6 +89,8 @@ class BimanualModelPolicy:
         vocab_size = 512
         sequence_length = 15
         num_image_tokens = 81
+        import sys
+        sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main/models')
         import rt1
         from rt1_bimanual_inference_example import RT1BimanualPolicy
         model = rt1.BimanualRT1(

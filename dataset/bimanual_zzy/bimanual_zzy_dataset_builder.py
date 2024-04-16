@@ -10,7 +10,7 @@ from pathlib import Path
 class Builder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for bimanual_zzy dataset."""
 
-    VERSION = tfds.core.Version("0.1.1")
+    VERSION = tfds.core.Version("0.1.2")
     RELEASE_NOTES = {
         "0.1.0": "Initial release.",
     }

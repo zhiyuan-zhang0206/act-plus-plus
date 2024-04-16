@@ -1,4 +1,4 @@
-python record_sim_episodes_optimized.py
+# python record_sim_episodes_optimized.py
 #     --task_name sim_stir_scripted \
 #     --num_episodes 10
 python visualize_episodes.py \

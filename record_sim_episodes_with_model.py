@@ -17,7 +17,110 @@ from scripted_policy import StirPolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
 from loguru import logger
+from scipy.spatial.transform import Rotation as R
+
+class BimanualModelPolicy:
+    def __init__(self, 
+                 ckpt_path=None,
+                 frame_interval:int=10
+                ):
+        instruction_to_embedding_path = Path('/home/users/ghc/zzy/USE/string_to_embedding.npy')
+        self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
+        self.frame_interval = frame_interval
+        return
+        logger.debug('loading model')
+        num_action_tokens = 11
+        layer_size = 256
+        vocab_size = 32
+        sequence_length = 15
+        num_image_tokens = 81
+        import sys
+        sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main/models')
+        import rt1
+        from rt1_bimanual_inference_example import RT1BimanualPolicy
+        model = rt1.BimanualRT1(
+            num_image_tokens=num_image_tokens,
+            num_action_tokens=num_action_tokens,
+            layer_size=layer_size,
+            vocab_size=vocab_size,
+            # Use token learner to reduce tokens per image to 81.
+            use_token_learner=True,
+            # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
+            world_vector_range=(-0.06, 0.06),
+            )   
+        self.policy = RT1BimanualPolicy(
+            checkpoint_path=ckpt_path,
+            model=model,
+            seqlen=sequence_length,
+        )
+        logger.debug('model loaded')
+        self.images_left = []
+        self.images_right = []
+        self.step = 0
     
+    def set_language_instruction(self, language_instruction:str):
+        
+        # import tensorflow_hub as hub
+        # embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
+        self.language_instruction = language_instruction
+        self.language_instruction_embedding = self.instruction_to_embedding[language_instruction]
+        # self.language_instruction_embedding = embed([language_instruction])[0]
+        # del embed
+        
+    def _add_merge_image(self, image_left, image_right):
+        self.images_left.append(image_left)
+        self.images_right.append(image_right)
+        if len(self.images_left) > 15:
+            self.images_left.pop(0)
+            self.images_right.pop(0)
+        assert len(self.images_left) == len(self.images_right)
+        left_input = np.stack(self.images_left, axis=0)
+        left_input_padded = np.zeros((15, 300, 300, 3))
+        left_input_padded[-left_input.shape[0]:] = left_input
+        right_input = np.stack(self.images_right, axis=0)
+        right_input_padded = np.zeros((15, 300, 300, 3))
+        right_input_padded[-right_input.shape[0]:] = right_input
+        return left_input_padded, right_input_padded
+        
+    def _calculate_new_pose(self, pose, delta):
+        new_location = pose[:3] + delta[:3]
+        rpy_delta = delta[3:6]
+        current_rpy = R.from_quat(pose[3:7]).as_euler('zyx')
+        new_rpy = current_rpy + rpy_delta
+        new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
+        return np.concatenate([new_location, new_quaternion])
+    
+    def generate_action_buffer(self, current_pose, new_pose):
+        for i in range(self.frame_interval):
+            fraction = i / self.frame_interval
+    
+    def __call__(self, ts):
+        # action = np.zeros(14)
+        observation = ts.observation
+        breakpoint()
+        left, right = self._add_merge_image(observation['images']['left_angle'], observation['images']['right_angle'])
+        if self.step % self.frame_interval:
+            policy_input = {
+                "image_left": left,
+                "image_right": right,
+                "natural_language_embedding": self.language_instruction_embedding,
+            }
+            action = self.policy.action(policy_input)
+            left_pose_new = self._calculate_new_pose(observation['left_pose'], action[0])
+            right_pose_new = self._calculate_new_pose(observation['right_pose'], action[1])
+            current_pose = np.concatenate([observation['left_pose'], observation['right_pose']])
+            new_pose = np.concatenate([left_pose_new, right_pose_new])
+            self.action_buffer = self.generate_action_buffer(current_pose, new_pose)
+        else:
+            return self.action_buffer.pop(0)
+        self.step += 1
+        return action
+
+    def reset(self, ):
+        self.images_left = []
+        self.images_right = []
+        self.step = 0
+
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
     left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][0])
@@ -27,43 +130,39 @@ def make_action_q(observation):
     return action_q
     
 from tqdm import trange
+import random
+random.seed(1)
 def main(args):
-    import random
-    random.seed(1)
-    """
-    Generate demonstration data in simulation.
-    First rollout the policy (defined in ee space) in ee_sim_env. Obtain the joint trajectory.
-    Replace the gripper joint positions with the commanded joint position.
-    Replay this joint trajectory (as action sequence) in sim_env, and record all observations.
-    Save this episode of data, and continue to next episode of data collection.
-    """
-    start_index = args['start_index']
-    logger.info(f'Start index: {start_index}')
+    
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
-    inject_noise = False
-
+    # inject_noise = False
+    RENDER_START_FRAME = 250
+    MODEL_POLICY_START_FRAME = 260
+    assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir, exist_ok=True)
-
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
     if task_name == 'sim_stir_scripted':
-        policy_cls = StirPolicy
+        script_policy_cls = StirPolicy
     else:
         raise NotImplementedError
-    logger.info(f'Policy class: {policy_cls.__name__}')
+    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/coordinater-train[:1]-1000-2024-04-16_15-56-39'
+    model_policy = BimanualModelPolicy(model_ckpt_path)
+    model_policy.set_language_instruction(script_policy_cls.language_instruction)
+    logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
     dataset_path = Path(os.path.join(dataset_dir, task_name))
     episode_idx = 0
     while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
-
-        script_policy = policy_cls(inject_noise)
-        
+        model_policy.reset()
+        script_policy = script_policy_cls()
         env_ee = make_ee_sim_env(task_name)
         ts_ee = env_ee.reset()
+        script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
@@ -71,15 +170,18 @@ def main(args):
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        # episode_len = 400
+        
+        policy = script_policy
         try:
             for step in trange(episode_len):
-                action_ee = script_policy(ts_ee)
+                if step == RENDER_START_FRAME:
+                    env_q.task.start_render()
+                if step == MODEL_POLICY_START_FRAME:
+                    policy = model_policy
+                action_ee = policy(ts_q)
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
-                if step == 250:
-                    env_q.task.start_render()
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
@@ -93,7 +195,7 @@ def main(args):
         For each timestep:
         observations
         - images
-            - each_cam_name     (480, 640, 3) 'uint8'
+            - each_cam_name     (300, 300, 3) 'uint8'
         - qpos                  (14,)         'float64'
         - qvel                  (14,)         'float64'
 
@@ -138,8 +240,8 @@ def main(args):
         data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
-            if hasattr(policy_cls, 'language_instruction'):
-                root.attrs['language_instruction'] = policy_cls.language_instruction
+            if hasattr(script_policy_cls, 'language_instruction'):
+                root.attrs['language_instruction'] = script_policy_cls.language_instruction
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in camera_names:

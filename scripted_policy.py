@@ -15,6 +15,7 @@ class BasePolicy:
         self.step_count = 0
         self.left_trajectory = None
         self.right_trajectory = None
+        self.trajectory_generated = False
 
     def generate_trajectory(self, ts_first):
         raise NotImplementedError
@@ -35,8 +36,10 @@ class BasePolicy:
 
     def __call__(self, ts):
         # generate trajectory at first timestep, then open-loop execution
-        if self.step_count == 0:
+        if self.step_count == 0 and not self.trajectory_generated:
             self.generate_trajectory(ts)
+        if not self.trajectory_generated:
+            raise ValueError("Trajectory not generated yet")
 
         # obtain left and right waypoints
         if self.left_trajectory[0]['t'] == self.step_count:
@@ -152,6 +155,7 @@ class InsertionPolicy(BasePolicy):
 class StirPolicy(BasePolicy):
     language_instruction :str = 'use spoon to stir coffee'
     def generate_trajectory(self, ts_first):
+        self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
         init_mocap_pose_right = ts_first.observation['mocap_pose_right']
         left_initial_loc = init_mocap_pose_left[:3]
