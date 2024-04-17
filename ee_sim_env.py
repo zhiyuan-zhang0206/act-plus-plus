@@ -371,10 +371,10 @@ class StirEETask(BimanualViperXEETask):
 
         cup_start_id = physics.model.name2id('cup_joint', 'joint')
         cup_start_idx = id2index(cup_start_id)
-        np.copyto(physics.data.qpos[cup_start_idx : cup_start_idx + 7], cup_pose)
-
         spoon_start_id = physics.model.name2id('spoon_joint', 'joint')
         spoon_start_idx = id2index(spoon_start_id)
+        np.copyto(physics.data.qpos[cup_start_idx : cup_start_idx + 7], cup_pose)
+
         np.copyto(physics.data.qpos[spoon_start_idx : spoon_start_idx + 7], spoon_pose)
         # print(f"randomized cube position to {cube_position}")
         object_info = {'object_num':2, 
@@ -384,7 +384,14 @@ class StirEETask(BimanualViperXEETask):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[16:]
+        id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky
+        cup_start_id = physics.model.name2id('cup_joint', 'joint')
+        cup_start_idx = id2index(cup_start_id)
+        spoon_start_id = physics.model.name2id('spoon_joint', 'joint')
+        spoon_start_idx = id2index(spoon_start_id)
+        cup_pose = physics.data.qpos[cup_start_idx : cup_start_idx + 7].copy()
+        spoon_pose = physics.data.qpos[spoon_start_idx : spoon_start_idx + 7].copy()
+        env_state = np.concatenate([cup_pose, spoon_pose])
         return env_state
 
     def get_reward(self, physics):

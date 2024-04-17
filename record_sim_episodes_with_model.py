@@ -2,6 +2,9 @@ import time
 import os
 # os.environ['MUJOCO_GL'] = 'egl'
 os.environ['MUJOCO_GL'] = 'osmesa'
+import importlib
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 # os.environ['PYOPENGL_PLATFORM'] = 'egl'
 # os.environ['DISPLAY'] = 'egl'
 # =:0
@@ -18,52 +21,65 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 from loguru import logger
 from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
 
 class BimanualModelPolicy:
     def __init__(self, 
                  ckpt_path=None,
-                 frame_interval:int=10
+                 frame_interval:int=10,
+                 dataset_debug:bool=True
                 ):
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/USE/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
+        if ckpt_path is None:
+            dataset_debug = True
+        else:
+            dataset_debug = False
+        self.dataset_debug = dataset_debug
         self.frame_interval = frame_interval
-        return
-        logger.debug('loading model')
-        num_action_tokens = 11
-        layer_size = 256
-        vocab_size = 32
-        sequence_length = 15
-        num_image_tokens = 81
-        import sys
-        sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main/models')
-        import rt1
-        from rt1_bimanual_inference_example import RT1BimanualPolicy
-        model = rt1.BimanualRT1(
-            num_image_tokens=num_image_tokens,
-            num_action_tokens=num_action_tokens,
-            layer_size=layer_size,
-            vocab_size=vocab_size,
-            # Use token learner to reduce tokens per image to 81.
-            use_token_learner=True,
-            # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
-            world_vector_range=(-0.06, 0.06),
-            )   
-        self.policy = RT1BimanualPolicy(
-            checkpoint_path=ckpt_path,
-            model=model,
-            seqlen=sequence_length,
-        )
-        logger.debug('model loaded')
         self.images_left = []
         self.images_right = []
         self.step = 0
+        # return
+        import sys
+        sys.path.append('/home/users/ghc/zzy')
+        rtx = importlib.import_module('open_x_embodiment-main' )
+        if self.dataset_debug:
+            dataset = rtx.dataset.get_train_dataset(1, bimanual=True, split='train[:1]', augmentation=False, shuffle=False)
+            data = next(iter(dataset))
+            action = data['action']
+            self.dataset_action = {'gripper_left':action['gripper_closedness_action_left'][0].numpy().tolist(),
+                                   'gripper_right':action['gripper_closedness_action_right'][0].numpy().tolist(),
+                                   'pose_left':np.concatenate([action['rotation_delta_left'].numpy(), action['world_vector_left'].numpy()], axis=-1)[0].tolist(),
+                                   'pose_right':np.concatenate([action['rotation_delta_right'].numpy(), action['world_vector_right'].numpy()], axis=-1)[0].tolist()}
+        else:
+            logger.debug('loading model')
+            # import rt1
+            # from rt1_bimanual_inference_example import RT1BimanualPolicy
+            model = rtx.models.rt1.BimanualRT1(
+                num_image_tokens=81,
+                num_action_tokens=11,
+                layer_size=256,
+                vocab_size=32,
+                # Use token learner to reduce tokens per image to 81.
+                use_token_learner=True,
+                # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
+                world_vector_range=(-0.06, 0.06),
+                )   
+            self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
+                checkpoint_path=ckpt_path,
+                model=model,
+                seqlen=15,
+            )
+            logger.debug('model loaded')
     
     def set_language_instruction(self, language_instruction:str):
         
         # import tensorflow_hub as hub
         # embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
         self.language_instruction = language_instruction
-        self.language_instruction_embedding = self.instruction_to_embedding[language_instruction]
+        language_instruction_embedding = self.instruction_to_embedding[language_instruction]
+        self.language_instruction_embedding = np.repeat(language_instruction_embedding[np.newaxis], 15, axis=0)
         # self.language_instruction_embedding = embed([language_instruction])[0]
         # del embed
         
@@ -93,28 +109,50 @@ class BimanualModelPolicy:
     def generate_action_buffer(self, current_pose, new_pose):
         diff = new_pose - current_pose
         actions = []
+        start_quaternion = R.from_quat(current_pose[3:7])
+        end_quaternion = R.from_quat(new_pose[3:7])
+        times = np.linspace(0, 1, self.frame_interval, endpoint=False) + 1/self.frame_interval
+        slerp = Slerp([0,1], R.concatenate([start_quaternion, end_quaternion]))
+        interpolated_quaternions = slerp(times)
         for i in range(self.frame_interval):
             fraction = (i+1) / self.frame_interval
             action = current_pose + diff * fraction
+            action[3:7] = interpolated_quaternions[i].as_quat()
+            # action[3:7] /= np.linalg.norm(action[3:7])
+            # action[11:15] /= np.linalg.norm(action[10:14])
             actions.append(action)
         return actions
-            
+    
+    def action(self, policy_input):
+        if self.dataset_debug:
+            d = self.dataset_action
+            left = np.concatenate([d['pose_left'].pop(0), d['gripper_left'].pop(0)], axis=-1)
+            right = np.concatenate([d['pose_right'].pop(0), d['gripper_right'].pop(0)], axis=-1)
+            return [left, right]
+        else:
+            detokenized = self.policy.action(policy_input)
+            left = np.concatenate([detokenized['world_vector_left'], detokenized['rotation_delta_left'], np.clip(1-detokenized['gripper_closedness_action_left'], 0,1)], axis=0)
+            right = np.concatenate([detokenized['world_vector_right'], detokenized['rotation_delta_right'], np.clip(1-detokenized['gripper_closedness_action_right'], 0,1)], axis=0)
+            return left, right
+    
     def __call__(self, ts):
         # action = np.zeros(14)
         observation = ts.observation
-        breakpoint()
+        # breakpoint()
         left, right = self._add_merge_image(observation['images']['left_angle'], observation['images']['right_angle'])
-        if self.step % self.frame_interval:
+        if self.step % self.frame_interval == 0:
             policy_input = {
                 "image_left": left,
                 "image_right": right,
                 "natural_language_embedding": self.language_instruction_embedding,
             }
-            action = self.policy.action(policy_input)
-            left_pose_new = self._calculate_new_pose(observation['left_pose'], action[0])
-            right_pose_new = self._calculate_new_pose(observation['right_pose'], action[1])
-            current_pose = np.concatenate([observation['left_pose'], observation['right_pose']])
-            new_pose = np.concatenate([left_pose_new, right_pose_new])
+            action = self.action(policy_input)
+            left_pose_new = self._calculate_new_pose(observation['left_pose'], action[0][:6])
+            right_pose_new = self._calculate_new_pose(observation['right_pose'], action[1][:6])
+            left_gripper_new = np.zeros((1,))
+            right_gripper_new = np.zeros((1,))
+            current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
+            new_pose = np.concatenate([left_pose_new,  left_gripper_new, right_pose_new, right_gripper_new])
             self.action_buffer = self.generate_action_buffer(current_pose, new_pose)
         
         self.step += 1
@@ -152,7 +190,8 @@ def main(args):
     if task_name == 'sim_stir_scripted':
         script_policy_cls = StirPolicy
     else:
-        raise NotImplementedError
+        raise 
+    model_ckpt_path = None
     model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/coordinater-train[:1]-1000-2024-04-16_15-56-39'
     model_policy = BimanualModelPolicy(model_ckpt_path)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
@@ -180,10 +219,32 @@ def main(args):
             for step in trange(episode_len):
                 if step == RENDER_START_FRAME:
                     env_q.task.start_render()
-                if step == MODEL_POLICY_START_FRAME:
-                    # policy = model_policy
-                    pass
-                action_ee = policy(ts_q)
+                # if step == MODEL_POLICY_START_FRAME:
+                #     policy = model_policy
+                # action_ee = policy(ts_q)
+                if step >= MODEL_POLICY_START_FRAME:
+                #     print(action_1:= model_policy(ts_q))
+                #     print(action_2:= script_policy(ts_q))
+                    action_1 = model_policy(ts_q)
+                    action_2 = script_policy(ts_q)
+                    # action_ee = action_2
+                    if step % (20) < 10:
+                        action_ee = action_1 
+                    else:
+                        action_ee = action_2
+                    # print('model: ', action_1[:3])
+                    # print('script:', action_2[:3])
+                    # diff = action_1 - action_2
+                    action_ee = action_1
+                    # action_ee = action_2
+                    # print('diff', action_1[3:7] - action_2[3:7])
+                    # print('diff', diff[:3], diff[8:11])
+                    # action_ee[3:7] = action_1[3:7]
+                    # action_ee[8:11] = action_1[8:11]
+                    # action_ee[:3] = action_1[:3]
+                    # action_ee[8:11] = action_1[8:11]
+                else:
+                    action_ee = script_policy(ts_q)
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
@@ -192,6 +253,7 @@ def main(args):
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
             logger.info('Physics error, continue.')
+            raise
             continue
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
