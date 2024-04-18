@@ -48,6 +48,8 @@ class BimanualModelPolicy:
             dataset = rtx.dataset.get_train_dataset(1, bimanual=True, split='train[:1]', augmentation=False, shuffle=False)
             data = next(iter(dataset))
             action = data['action']
+            # breakpoint()
+            self.metadata = rtx.dataset.get_bimanual_dataset_episode_metadata()[int(data['observation']['index'][0, -1])]
             self.dataset_action = {'gripper_left':action['gripper_closedness_action_left'][0].numpy().tolist(),
                                    'gripper_right':action['gripper_closedness_action_right'][0].numpy().tolist(),
                                    'pose_left':np.concatenate([action['rotation_delta_left'].numpy(), action['world_vector_left'].numpy()], axis=-1)[0].tolist(),
@@ -100,10 +102,10 @@ class BimanualModelPolicy:
         
     def _calculate_new_pose(self, pose, delta):
         new_location = pose[:3] + delta[:3]
-        rpy_delta = delta[3:6]
-        current_rpy = R.from_quat(pose[3:7]).as_euler('zyx')
-        new_rpy = current_rpy + rpy_delta
-        new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
+        rpy_delta = R.from_euler('zyx', delta[3:6])
+        current_rpy = R.from_quat(pose[3:7])
+        new_quaternion = (rpy_delta * current_rpy).as_quat()
+        # new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
         return np.concatenate([new_location, new_quaternion])
     
     def generate_action_buffer(self, current_pose, new_pose):
@@ -180,8 +182,9 @@ def main(args):
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
     # inject_noise = False
-    RENDER_START_FRAME = 250
     MODEL_POLICY_START_FRAME = 260
+    # MODEL_POLICY_START_FRAME -= 1
+    RENDER_START_FRAME = MODEL_POLICY_START_FRAME
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
@@ -191,8 +194,8 @@ def main(args):
         script_policy_cls = StirPolicy
     else:
         raise 
-    model_ckpt_path = None
     model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/coordinater-train[:1]-1000-2024-04-16_15-56-39'
+    model_ckpt_path = None
     model_policy = BimanualModelPolicy(model_ckpt_path)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
@@ -204,8 +207,9 @@ def main(args):
         model_policy.reset()
         script_policy = script_policy_cls()
         env_ee = make_ee_sim_env(task_name)
+        env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        script_policy.generate_trajectory(ts_ee)
+        script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
@@ -216,7 +220,7 @@ def main(args):
         
         policy = script_policy
         try:
-            for step in trange(episode_len):
+            for step in range(episode_len):
                 if step == RENDER_START_FRAME:
                     env_q.task.start_render()
                 # if step == MODEL_POLICY_START_FRAME:
@@ -228,15 +232,18 @@ def main(args):
                     action_1 = model_policy(ts_q)
                     action_2 = script_policy(ts_q)
                     # action_ee = action_2
-                    if step % (20) < 10:
+                    print('dataset: ',action_1[:3])
+                    print('script:  ',action_2[:3])
+                    print()
+                    if step % 40 < 20:
                         action_ee = action_1 
                     else:
                         action_ee = action_2
                     # print('model: ', action_1[:3])
                     # print('script:', action_2[:3])
                     # diff = action_1 - action_2
-                    action_ee = action_1
-                    # action_ee = action_2
+                    # action_ee = action_1
+                    action_ee = action_2
                     # print('diff', action_1[3:7] - action_2[3:7])
                     # print('diff', diff[:3], diff[8:11])
                     # action_ee[3:7] = action_1[3:7]

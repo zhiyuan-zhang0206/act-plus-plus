@@ -321,7 +321,7 @@ def sample_stir_pose():
     # spoon_quat = np.array([0, 0, 0, 1])
     spoon_quat = np.array([1, 0, 0, 0])
     spoon_pose = np.concatenate([spoon_position, spoon_quat])
-    return cup_pose, spoon_pose
+    return np.concatenate([cup_pose, spoon_pose])
 
 
 

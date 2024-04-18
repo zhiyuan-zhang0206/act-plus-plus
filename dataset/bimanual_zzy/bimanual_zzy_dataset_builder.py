@@ -10,9 +10,9 @@ from pathlib import Path
 class Builder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for bimanual_zzy dataset."""
 
-    VERSION = tfds.core.Version("0.1.2")
+    VERSION = tfds.core.Version("0.1.3")
     RELEASE_NOTES = {
-        "0.1.0": "Initial release.",
+        "0.1.3": "debugging",
     }
 
     def _info(self) -> tfds.core.DatasetInfo:
@@ -26,6 +26,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
                     "steps": tfds.features.Dataset(
                         {
                             "observation": {
+                                "index": tfds.features.Tensor(shape=(), dtype=tf.int64),
                                 "image_left": tfds.features.Image(shape=(300, 300, 3)),
                                 "image_right": tfds.features.Image(shape=(300, 300, 3)),
                                 "natural_language_instruction": tfds.features.Text(),
@@ -103,6 +104,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
                 episode.append(
                     {
                         "observation": {
+                            "index": data["index"],
                             "image_left": data["image_left"][i] ,
                             "image_right":data["image_right"][i] ,
                             "natural_language_instruction": data["language_instruction"],
@@ -124,4 +126,4 @@ class Builder(tfds.core.GeneratorBasedBuilder):
                         },
                     }
                 )
-            yield f.stem, {"steps": episode}
+            yield f.stem, {"steps": episode, }

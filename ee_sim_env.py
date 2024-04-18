@@ -361,12 +361,14 @@ class StirEETask(BimanualViperXEETask):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.max_reward = 4
+        self.objects_start_pose = sample_stir_pose()
 
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
         self.initialize_robots(physics, close_width=0.044)
-        # randomize box position
-        cup_pose, spoon_pose = sample_stir_pose()
+        
+        cup_pose = self.objects_start_pose[0:7]
+        spoon_pose = self.objects_start_pose[7:14]
         id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky
 
         cup_start_id = physics.model.name2id('cup_joint', 'joint')

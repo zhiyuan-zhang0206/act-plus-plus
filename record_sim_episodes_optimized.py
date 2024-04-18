@@ -67,7 +67,9 @@ def main(args):
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
-        
+        script_policy.generate_trajectory(ts_ee)
+        random_values = script_policy.random_values
+        objects_start_pose = env_ee.task.objects_start_pose
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
@@ -155,6 +157,9 @@ def main(args):
 
             for name, array in data_dict.items():
                 root[name][...] = array
+            for key, value in random_values.items():
+                root.create_dataset(f'random_values/{key}', data=value)
+            root.create_dataset('objects_start_pose', data=objects_start_pose)
         episode_idx += 1
 
     logger.info(f'Saved to {dataset_dir}')
