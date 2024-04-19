@@ -82,11 +82,20 @@ def process_data(path, save_dir, debug=False):
 from tqdm import tqdm
 
 def test():
-    hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted/episode_0000.hdf5'
+    hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted/episode_0005.hdf5'
     with h5py.File(hdf5_path, 'r') as root:        
-        left_pose = root['/observations/left_pose'][()][START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
-        right_pose = root['/observations/right_pose'][()][START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
-        
+        left_pose = root['/observations/left_pose'][()]  
+        right_pose = root['/observations/right_pose'][()]# [START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
+        random_values = {}
+        for key, dataset in root['random_values'].items():
+            random_values[key] = dataset[()]
+    print(right_pose[329:340,:3])
+    right_pose = right_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
+    # print(right_pose[:2,:3])
+    right_vector_diff = np.diff(right_pose[:, :3], axis=0)
+    # print(right_pose[1:, :3] - right_pose[:-1, :3])
+    print(right_vector_diff[0])
+    # print(random_values)
 
 def main():
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'sim_stir_scripted'

@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pyquaternion import Quaternion
-
+from loguru import logger
 from constants import SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 import random
-import IPython
-e = IPython.embed
+# import IPython
+# e = IPython.embed
 
 
 class BasePolicy:
@@ -213,6 +213,8 @@ class StirPolicy(BasePolicy):
                 "delta_9":random.choice(stir_deltas),
                 "delta_10":random.choice(stir_deltas),
             }
+        else:
+            logger.info(f"Using given random values.")
         # separate_xyz = meet_xyz + np.array([0.1, 0, 0.1])
         
         self.left_trajectory = [
