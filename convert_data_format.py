@@ -9,7 +9,7 @@ from pyquaternion import Quaternion
 START_FRAME = 260
 START_FRAME -= 1
 TIME_INTERVAL = 10
-language_embedding_path = Path(__file__).parent.parent / 'USE/string_to_embedding.npy'
+language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
 
 def extract_index(name):

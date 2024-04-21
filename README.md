@@ -86,6 +86,7 @@ TL;DR: if your ACT policy is jerky or pauses in the middle of an episode, just t
 
 ## to generate data
 # python record_sim_episodes.py
+# python visualize_episodes.py
 # python convert_data_format.py
 # cd dataset/bimanual_zzy
 # proxy setup

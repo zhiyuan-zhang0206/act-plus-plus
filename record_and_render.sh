@@ -1,11 +1,11 @@
+# python record_sim_episodes_optimized.py \
+#     --task_name sim_stir_scripted \
+#     --num_episodes 50
+# python visualize_episodes.py \
+#     --dataset_dir generated_data/sim_stir_scripted
 python record_sim_episodes_with_model.py \
     --task_name sim_stir_scripted \
     --num_episodes 10
-# python record_sim_episodes_optimized.py \
-#     --task_name sim_stir_scripted \
-#     --num_episodes 10
-# python visualize_episodes.py \
-#     --dataset_dir generated_data/sim_stir_scripted
 python visualize_episodes.py \
     --dataset_dir evaluation_data/sim_stir_scripted
 # conda install -c conda-forge glew

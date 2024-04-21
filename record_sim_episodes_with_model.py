@@ -29,7 +29,7 @@ class BimanualModelPolicy:
                  frame_interval:int=10,
                  dataset_debug:bool=True
                 ):
-        instruction_to_embedding_path = Path('/home/users/ghc/zzy/USE/string_to_embedding.npy')
+        instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
         if ckpt_path is None:
             dataset_debug = True
@@ -83,7 +83,7 @@ class BimanualModelPolicy:
                 seqlen=15,
             )
             logger.debug('model loaded')
-        self.always_refresh = True
+        self.always_refresh = False
     
     def set_language_instruction(self, language_instruction:str):
         
@@ -197,7 +197,7 @@ def main(args):
     # inject_noise = False
     MODEL_POLICY_START_FRAME = 260
     # MODEL_POLICY_START_FRAME -= 1
-    RENDER_START_FRAME = MODEL_POLICY_START_FRAME
+    RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 20
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
@@ -208,7 +208,7 @@ def main(args):
     else:
         raise 
     model_ckpt_path = None
-    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-19_19-00-43'
+    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-20_11-23-28'
     model_policy = BimanualModelPolicy(model_ckpt_path)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
@@ -222,8 +222,8 @@ def main(args):
         env_ee = make_ee_sim_env(task_name)
         # env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        # script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
-        script_policy.generate_trajectory(ts_ee)
+        script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
+        # script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
