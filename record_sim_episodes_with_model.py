@@ -46,17 +46,14 @@ class BimanualModelPolicy:
         import sys
         sys.path.append('/home/users/ghc/zzy')
         rtx = importlib.import_module('open_x_embodiment-main' )
-        batch_size = 14
-        dataset = rtx.dataset.get_train_dataset(batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False)
+        self.batch_size = 14
+        dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False)
         data = next(iter(dataset))
-        action = data['action']
-        index = int(data['observation']['index'][batch_size-1, -1])
-        logger.info(f"{index=}")
+        self.action_storage = data['action']
+        index = int(data['observation']['index'][self.batch_size-1, -1])
+        logger.info(f"data episode {index=}")
         self.metadata = rtx.dataset.get_bimanual_dataset_episode_metadata()[index]
-        self.dataset_action = {'gripper_left':action['gripper_closedness_action_left'][batch_size-1].numpy().tolist()[1:],
-                                'gripper_right':action['gripper_closedness_action_right'][batch_size-1].numpy().tolist()[1:],
-                                'pose_left':np.concatenate([action['world_vector_left'].numpy(), action['rotation_delta_left'].numpy()], axis=-1)[batch_size-1].tolist()[1:],
-                                'pose_right':np.concatenate([action['world_vector_right'].numpy(),action['rotation_delta_right'].numpy(), ], axis=-1)[batch_size-1].tolist()[1:]}
+        
         if self.dataset_debug:
             pass
             # print(self.metadata['random_values'])
@@ -71,11 +68,12 @@ class BimanualModelPolicy:
                 num_image_tokens=81,
                 num_action_tokens=11,
                 layer_size=256,
-                vocab_size=32,
+                vocab_size=512,
                 # Use token learner to reduce tokens per image to 81.
                 use_token_learner=True,
                 # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
-                world_vector_range=(-0.06, 0.06),
+                # world_vector_range=(-0.06, 0.06),
+                world_vector_range=(-0.2, 0.2),
                 )   
             self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
@@ -83,7 +81,7 @@ class BimanualModelPolicy:
                 seqlen=15,
             )
             logger.debug('model loaded')
-        self.always_refresh = False
+        self.always_refresh = True
     
     def set_language_instruction(self, language_instruction:str):
         
@@ -177,6 +175,11 @@ class BimanualModelPolicy:
         self.images_left = []
         self.images_right = []
         self.step = 0
+        
+        self.dataset_action = {'gripper_left':self.action_storage['gripper_closedness_action_left'][self.batch_size-1].numpy().tolist()[1:],
+                                'gripper_right':self.action_storage['gripper_closedness_action_right'][self.batch_size-1].numpy().tolist()[1:],
+                                'pose_left':np.concatenate([self.action_storage['world_vector_left'].numpy(), self.action_storage['rotation_delta_left'].numpy()], axis=-1)[self.batch_size-1].tolist()[1:],
+                                'pose_right':np.concatenate([self.action_storage['world_vector_right'].numpy(),self.action_storage['rotation_delta_right'].numpy(), ], axis=-1)[self.batch_size-1].tolist()[1:]}
 
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
@@ -208,7 +211,7 @@ def main(args):
     else:
         raise 
     model_ckpt_path = None
-    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-20_11-23-28'
+    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-22_16-23-37'
     model_policy = BimanualModelPolicy(model_ckpt_path)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
@@ -222,8 +225,8 @@ def main(args):
         env_ee = make_ee_sim_env(task_name)
         # env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
-        # script_policy.generate_trajectory(ts_ee)
+        # script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
+        script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
@@ -255,14 +258,14 @@ def main(args):
                     # print('dataset: ',action_1[:3])
                     # print('script:  ',action_2[8:11])
                     # print()
-                    if step % 40 > 20:
+                    if step % 20 > 10:
                         action_ee = action_1 
                     else:
                         action_ee = action_2
                     # print('model: ', action_1[:3])
                     # print('script:', action_2[:3])
                     # diff = action_1 - action_2
-                    action_ee = action_1
+                    # action_ee = action_1
                     # action_ee = action_2
                     # print(f'{step=}')
                     # print('goal dataset', action_1[8:11])
@@ -286,7 +289,7 @@ def main(args):
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
             logger.info('Physics error, continue.')
-            raise
+            # raise
             continue
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
