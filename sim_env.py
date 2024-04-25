@@ -53,7 +53,12 @@ def make_sim_env(task_name, object_info:dict=None)->control.Environment:
         task = StirTask(random=False, object_info=object_info)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
-    
+    elif 'sim_openlid' in task_name:
+        xml_path = os.path.join(XML_DIR, f'bimanual_viperx_openlid.xml')
+        physics = mujoco.Physics.from_xml_path(xml_path)
+        task = OpenLidTask(random=False, object_info=object_info)
+        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+                                  n_sub_steps=None, flat_observation=False)
     else:
         raise NotImplementedError
     return env
@@ -313,6 +318,33 @@ class StirTask(BimanualViperXTask):
         if pin_touched: # successful insertion
             reward = 4
         return reward
+
+class OpenLidTask(BimanualViperXTask):
+    def __init__(self, random=None, object_info:dict=None):
+        super().__init__(random=random)
+        self.max_reward = 4
+        self.object_info = object_info
+
+    def initialize_episode(self, physics):
+        """Sets the state of the environment at the start of each episode."""
+        # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
+        # reset qpos, control and box position
+        with physics.reset_context():
+            physics.named.data.qpos[:16] = START_ARM_POSE
+            np.copyto(physics.data.ctrl, START_ARM_POSE)
+            physics.named.data.qpos[-7*self.object_info['object_num']:] = self.object_info['object_poses']
+            # assert BOX_POSE[0] is not None
+            # physics.named.data.qpos[-7*2:] = BOX_POSE[0] # two objects
+            # print(f"{BOX_POSE=}")
+        super().initialize_episode(physics)
+
+    @staticmethod
+    def get_env_state(physics):
+        env_state = physics.data.qpos.copy()[16:]
+        return env_state
+
+    def get_reward(self, physics):
+        return 4
 
 
 def get_action(master_bot_left, master_bot_right):

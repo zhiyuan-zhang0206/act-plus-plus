@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import sys
-
+from tqdm import tqdm
 from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 import numpy as np
@@ -53,6 +53,14 @@ def process_data(path, save_dir, debug=False):
     right_quaternion = right_pose[:, 3:] / np.linalg.norm(right_pose[:, 3:], axis=1, keepdims=True)
     right_quaternion_diffs = R.from_quat(right_quaternion[1:]) * R.from_quat(right_quaternion[:-1]).inv()
     right_rpy_diff = right_quaternion_diffs.as_euler('zyx')
+    
+    # right hand as relative
+    right_location_relative = right_pose[:, :3] - left_pose[:, :3]
+    right_rpy_relative = (R.from_quat(right_quaternion) * R.from_quat(left_quaternion).inv()).as_euler('zyx')
+    right_location_relative_diff = np.diff(right_location_relative, axis=0)
+    right_rpy_relative_diff = R.from_euler('zyx', right_rpy_relative[1:]) * R.from_euler('zyx', right_rpy_relative[:-1]).inv()
+    
+    
     update_max_min(left_vector_diff, right_vector_diff, left_rpy_diff, right_rpy_diff)
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
@@ -62,6 +70,10 @@ def process_data(path, save_dir, debug=False):
         'world_vector_left': left_vector_diff,
         'rotation_delta_left': left_rpy_diff, #left_aa_diff,
         'world_vector_right': right_vector_diff,
+        'world_vector_right_relative': right_location_relative,
+        'rotation_delta_right_relative': right_rpy_relative.as_euler('zyx'),
+        'world_vector_right_relative_diff': right_location_relative_diff,
+        'rotation_delta_right_relative_diff': right_rpy_relative_diff.as_euler('zyx'),
         'rotation_delta_right': right_rpy_diff, #right_aa_diff,
         'image_left': (np.clip(left_image, 0, 255) ).astype(np.uint8),
         'image_right': (np.clip(right_image, 0, 255) ).astype(np.uint8),
@@ -78,8 +90,6 @@ def process_data(path, save_dir, debug=False):
             if isinstance(v, np.ndarray):
                 print(k, v.shape)
     np.save(save_path, data)
-
-from tqdm import tqdm
 
 def test():
     hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted/episode_0005.hdf5'

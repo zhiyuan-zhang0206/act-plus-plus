@@ -3,7 +3,29 @@ import os
 # os.environ['MUJOCO_GL'] = 'egl'
 os.environ['MUJOCO_GL'] = 'osmesa'
 import importlib
+import warnings
+from io import StringIO
+class FailedToConvergeError(Exception):
+    pass
+class InterceptStdOut:
+    def __init__(self, target):
+        self.target = target
+        self.buffer = StringIO()  # Using StringIO for more efficient string operations
 
+    def write(self, message):
+        self.buffer.write(message)  # Write to the buffer
+        if "Failed to converge after" in message:
+            print("Warning detected: ", message)
+            raise FailedToConvergeError(message)
+        self.target.write(message)
+
+    def flush(self):
+        self.buffer.flush()
+        self.target.flush()
+# warnings.filterwarnings("error", message=
+# re.compile(r"Failed to converge after \d+ steps with norm \d+\.\d+"))
+# import re
+# warnings.filterwarnings("error", message=(r"Failed to converge after.*"))
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 # os.environ['PYOPENGL_PLATFORM'] = 'egl'
 # os.environ['DISPLAY'] = 'egl'
@@ -27,7 +49,9 @@ class BimanualModelPolicy:
     def __init__(self, 
                  ckpt_path=None,
                  frame_interval:int=10,
-                 dataset_debug:bool=True
+                 dataset_debug:bool=True,
+                 always_refresh:bool=False,
+                 dropout_train:bool=False,
                 ):
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
@@ -79,9 +103,10 @@ class BimanualModelPolicy:
                 checkpoint_path=ckpt_path,
                 model=model,
                 seqlen=15,
+                dropout_train = dropout_train
             )
             logger.debug('model loaded')
-        self.always_refresh = True
+        self.always_refresh = always_refresh
     
     def set_language_instruction(self, language_instruction:str):
         
@@ -191,12 +216,19 @@ def make_action_q(observation):
     
 from tqdm import trange
 import random
-random.seed(1)
+random.seed(42)
+import sys
 def main(args):
+    intercepted = InterceptStdOut(sys.stdout)
+    sys.stdout = intercepted
     
     task_name = args['task_name']
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
+    always_refresh = args['always_refresh']
+    model_ckpt_path = args['model_ckpt_path']
+    frame_interval = args['frame_interval']
+    dropout_train = args['dropout_train']
     # inject_noise = False
     MODEL_POLICY_START_FRAME = 260
     # MODEL_POLICY_START_FRAME -= 1
@@ -210,15 +242,21 @@ def main(args):
         script_policy_cls = StirPolicy
     else:
         raise 
-    model_ckpt_path = None
-    model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-22_16-23-37'
-    model_policy = BimanualModelPolicy(model_ckpt_path)
+    # frame_interval = 20
+    # model_ckpt_path = None
+    # model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-23_15-06-01/checkpoint_300'
+    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
-    save_path = Path(os.path.join(save_dir, task_name))
+    save_path = Path(os.path.join(save_dir, task_name, str(args['start_index'])))
     episode_idx = 0
+    failed_times_limit = 10
+    failed_times = 0
     while episode_idx < num_episodes:
+        if failed_times >= failed_times_limit:
+            logger.info('Failed too many times, stop.')
+            break
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
         model_policy.reset()
         script_policy = script_policy_cls()
@@ -234,13 +272,15 @@ def main(args):
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        
+        episode_len = RENDER_START_FRAME + frame_interval * 20
+        if episode_len >= 600:
+            episode_len = 600
         policy = script_policy
         try:
             for step in trange(episode_len):
                 # print(step)
-                if step >= 388:
-                    break
+                # if step >= 588:
+                #     break
                 if step == RENDER_START_FRAME:
                     env_q.task.start_render()
                 # if step == MODEL_POLICY_START_FRAME:
@@ -253,19 +293,19 @@ def main(args):
                 #     print(action_1:= model_policy(ts_q))
                 #     print(action_2:= script_policy(ts_q))
                     action_1 = model_policy(ts_q)
-                    action_2 = script_policy(ts_q)
+                    # action_2 = script_policy(ts_q)
                     # action_ee = action_2
                     # print('dataset: ',action_1[:3])
                     # print('script:  ',action_2[8:11])
                     # print()
-                    if step % 20 > 10:
-                        action_ee = action_1 
-                    else:
-                        action_ee = action_2
+                    # if step % 20 > 10:
+                    #     action_ee = action_1 
+                    # else:
+                    #     action_ee = action_2
                     # print('model: ', action_1[:3])
                     # print('script:', action_2[:3])
                     # diff = action_1 - action_2
-                    # action_ee = action_1
+                    action_ee = action_1
                     # action_ee = action_2
                     # print(f'{step=}')
                     # print('goal dataset', action_1[8:11])
@@ -278,18 +318,28 @@ def main(args):
                     # action_ee[8:11] = action_1[8:11]
                 else:
                     action_ee = script_policy(ts_q)
-                ts_ee = env_ee.step(action_ee)
+                try:
+                    ts_ee = env_ee.step(action_ee)
+                except FailedToConvergeError as e:  # Catching the warning as an exception
+                    # if "Failed to converge" in str(e):
+                    failed_times += 1
+                    continue
                 episode_ee.append(ts_ee)
                 
                 action_q = make_action_q(ts_ee.observation)
-                ts_q = env_q.step(action_q)
+                try:
+                    ts_q = env_q.step(action_q)
+                except FailedToConvergeError as e:  # Catching the warning as an exception
+                    # if "Failed to converge" in str(e):
+                    failed_times += 1
+                    continue
                 # if 259 > step >= 248:
                 #     print('actual      ', ts_q.observation['right_pose'][:3])
                 #     print()
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
             logger.info('Physics error, continue.')
-            # raise
+            failed_times += 1
             continue
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
@@ -354,5 +404,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
+    parser.add_argument('--always_refresh', action='store_true', default=False)
+    parser.add_argument('--model_ckpt_path', action='store', type=str, required=True)
+    parser.add_argument('--frame_interval', action='store', type=int, default=10)
+    parser.add_argument('--dropout_train', action='store_true',default=False)
     main(vars(parser.parse_args()))
 

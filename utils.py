@@ -301,6 +301,17 @@ def postprocess_base_action(base_action):
 
 ### env utils
 
+def sample_openlid_pose():
+    x_range = [0.0, 0.]
+    y_range = [0.5, 0.5]
+    z_range = [0, 0]
+    ranges = np.vstack([x_range, y_range, z_range])
+    cup_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
+    cup_quat = np.array([0.707107, 0, 0, -0.707107])
+    cup_pose = np.concatenate([cup_position, cup_quat])
+    lid_pose = np.concatenate([cup_position, cup_quat])
+    return np.concatenate([cup_pose, lid_pose])
+
 def sample_stir_pose():
     x_range = [-0.05, -0.03]
     # y_range = [0.4, 0.6]

@@ -9,10 +9,13 @@ SIM_TASK_CONFIGS = {
         'num_episodes': 50,
         'episode_len': 400,
         'camera_names': [
-            # 'horizontal', 
-            #              'left_wrist', 
-            #              'right_wrist', 'angle', 
-            #              'front_close', 
+                         'left_angle', 'right_angle']
+    },
+    'sim_openlid_scripted': {
+        'dataset_dir': DATA_DIR + '/sim_openlid_scripted',
+        'num_episodes': 50,
+        'episode_len': 400,
+        'camera_names': [
                          'left_angle', 'right_angle']
     },
     # 'sim_transfer_cube_scripted':{

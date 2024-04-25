@@ -13,11 +13,14 @@ import dm_control
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env
-from scripted_policy import StirPolicy
+from scripted_policy import StirPolicy, OpenLidPolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
 from loguru import logger
-    
+task_name_to_script_policy_cls = {
+    'sim_stir_scripted': StirPolicy,
+    'sim_openlid_scripted': OpenLidPolicy,
+}
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
     left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][0])
@@ -49,10 +52,10 @@ def main(args):
 
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
-    if task_name == 'sim_stir_scripted':
-        policy_cls = StirPolicy
-    else:
-        raise NotImplementedError
+    if task_name not in task_name_to_script_policy_cls:
+        raise ValueError(f'Unsupported task name: {task_name}')
+    policy_cls = task_name_to_script_policy_cls[task_name]
+    
     logger.info(f'Policy class: {policy_cls.__name__}')
 
     dataset_path = Path(os.path.join(dataset_dir, task_name))
@@ -71,6 +74,7 @@ def main(args):
         random_values = script_policy.random_values
         objects_start_pose = env_ee.task.objects_start_pose
         env_q = make_sim_env(task_name, object_info=object_info)
+        env_q.task.start_render()
         ts_q = env_q.reset()
         episode_q = [ts_q]
         # episode_len = 400
@@ -80,8 +84,8 @@ def main(args):
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
-                if step == 250:
-                    env_q.task.start_render()
+                # if step == 250:
+                    # env_q.task.start_render()
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
