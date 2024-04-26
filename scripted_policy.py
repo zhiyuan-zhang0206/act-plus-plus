@@ -5,6 +5,9 @@ from loguru import logger
 from constants import SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 import random
+
+from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
 # import IPython
 # e = IPython.embed
 
@@ -22,16 +25,20 @@ class BasePolicy:
 
     @staticmethod
     def interpolate(curr_waypoint, next_waypoint, t):
+        assert curr_waypoint['t'] <= t < next_waypoint['t']
         t_frac = (t - curr_waypoint["t"]) / (next_waypoint["t"] - curr_waypoint["t"])
         curr_xyz = curr_waypoint['xyz']
-        curr_quat = curr_waypoint['quat']
+        curr_quat = Quaternion(curr_waypoint['quat'])
         curr_grip = curr_waypoint['gripper']
         next_xyz = next_waypoint['xyz']
-        next_quat = next_waypoint['quat']
+        next_quat = Quaternion(next_waypoint['quat'])
         next_grip = next_waypoint['gripper']
+
         xyz = curr_xyz + (next_xyz - curr_xyz) * t_frac
-        quat = curr_quat + (next_quat - curr_quat) * t_frac
+        slerp = Slerp([0, 1], R.from_quat([curr_quat.elements, next_quat.elements]))
+        quat = slerp(t_frac).as_quat()
         gripper = curr_grip + (next_grip - curr_grip) * t_frac
+
         return xyz, quat, gripper
 
     def __call__(self, ts):
@@ -294,8 +301,8 @@ class OpenLidPolicy(BasePolicy):
             np.array([-0.01, -0.01,    0.06]),
         ]
         if random_values is None:
-            meet_xyz = (cup_xyz + lid_xyz)/2 + np.random.uniform(-0.1, 0.1, 3)
-            meet_xyz[2] = 0.3 + np.random.uniform(-0.1, 0.1)
+            meet_xyz = cup_xyz + np.random.uniform(-0.1, 0.1, 3)
+            meet_xyz[2] = 0.15 + np.random.uniform(-0.05, 0.1)
             random_values = {
                 "meet_xyz": meet_xyz,
             }
@@ -305,34 +312,29 @@ class OpenLidPolicy(BasePolicy):
         
         self.left_trajectory = [
             {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 100,  "xyz": cup_xyz + np.array([-0.07, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 125,  "xyz": cup_xyz + np.array([-0.03, 0.0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 150,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            # {"t": 200,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 200,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 360,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 10,  "xyz": cup_xyz +  np.array(  [-0.03, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 25,  "xyz": cup_xyz + np.array(  [0.0, 0.0, 0.06]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 40,  "xyz": cup_xyz + np.array(  [0.05, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 55,  "xyz": cup_xyz +   np.array([0.05, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 100,  "xyz":  meet_xyz,    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 300,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 330,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 360,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 400,  "xyz": meet_xyz,    "quat": left_initial_quat.elements,            "gripper": 0}, 
         ]
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
-        right_down = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=60)
-        right_stir = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-30)
-
+        # vertical_quaternion = Quaternion(np.array([0, -0.70710678, 0, 0.70710678]))
+        vertical_quaternion = right_initial_quat * Quaternion(axis=[1.0, 0.0, 0.0], degrees=90)
         self.right_trajectory = [
             {"t": 0,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
-            {"t": 50, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 100, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 0}, # sleep
-            {"t": 150, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 0}, # sleep
-            {"t": 200, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 0}, # sleep
-            {"t": 250, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            {"t": 300, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            {"t": 350, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            {"t": 370, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            {"t": 390, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            {"t": 400, "xyz": right_initial_loc,            "quat": right_initial_quat.elements,            "gripper":0}, # sleep
-            # {"t": 400, "xyz": meet_xyz + np.array([-0.01, 0, 0.13]),          "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 20, "xyz":  right_initial_loc,            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 60, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 130, "xyz":  meet_xyz + np.array([-0.06, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 180, "xyz":  meet_xyz + np.array([-0.06, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 200, "xyz":  meet_xyz + np.array([-0.11, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 400, "xyz":  meet_xyz + np.array([-0.15, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            
         ]
         self.random_values = random_values
 

@@ -309,7 +309,10 @@ def sample_openlid_pose():
     cup_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
     cup_quat = np.array([0.707107, 0, 0, -0.707107])
     cup_pose = np.concatenate([cup_position, cup_quat])
-    lid_pose = np.concatenate([cup_position, cup_quat])
+    lid_position = cup_position.copy()
+    # lid_position[2] += 0.1
+    # lid_position[1] += 0.07
+    lid_pose = np.concatenate([lid_position, cup_quat])
     return np.concatenate([cup_pose, lid_pose])
 
 def sample_stir_pose():

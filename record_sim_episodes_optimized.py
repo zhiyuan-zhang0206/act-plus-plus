@@ -16,7 +16,15 @@ from sim_env import make_sim_env
 from scripted_policy import StirPolicy, OpenLidPolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
+from tqdm import trange
 from loguru import logger
+
+def assemble_image_for_oncreen_render(ts):
+    image_left = ts.observation['images']['left_angle']
+    image_right = ts.observation['images']['right_angle']
+    image = np.concatenate([image_left, image_right], axis=1)
+    return image
+
 task_name_to_script_policy_cls = {
     'sim_stir_scripted': StirPolicy,
     'sim_openlid_scripted': OpenLidPolicy,
@@ -29,7 +37,6 @@ def make_action_q(observation):
     action_q[6+7] = right_ctrl
     return action_q
     
-from tqdm import trange
 def main(args):
     import random
     random.seed(1)
@@ -45,6 +52,7 @@ def main(args):
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
+    onscreen_render = args['onscreen_render']
     inject_noise = False
 
     if not os.path.isdir(dataset_dir):
@@ -77,9 +85,15 @@ def main(args):
         env_q.task.start_render()
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        # episode_len = 400
+        if onscreen_render:
+            ax = plt.subplot()
+            plt_img = ax.imshow(assemble_image_for_oncreen_render(ts_q))
+            plt.ion()
         try:
             for step in trange(episode_len):
+                if onscreen_render:
+                    plt_img.set_data(assemble_image_for_oncreen_render(ts_q))
+                    plt.pause(0.0001)
                 action_ee = script_policy(ts_ee)
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
@@ -91,7 +105,9 @@ def main(args):
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
             logger.info('Physics error, continue.')
+            plt.close()
             continue
+        plt.close()
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
         
 
@@ -177,4 +193,10 @@ if __name__ == '__main__':
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
     main(vars(parser.parse_args()))
+
+# python record_sim_episodes_optimized.py --task_name sim_stir_scripted --dataset_dir generated_data/sim_stir_scripted --onscreen_render
+# python record_sim_episodes_optimized.py --task_name sim_openlid_scripted --dataset_dir generated_data/sim_openlid_scripted --onscreen_render
+
+# python visualize_episodes.py --dataset_dir generated_data/sim_stir_scripted
+# python visualize_episodes.py --dataset_dir generated_data/sim_openlid_scripted
 
