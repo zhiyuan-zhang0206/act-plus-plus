@@ -1,6 +1,7 @@
 import time
 import os
 # os.environ['MUJOCO_GL'] = 'egl'
+from typing import Literal
 os.environ['MUJOCO_GL'] = 'osmesa'
 import importlib
 import warnings
@@ -52,6 +53,7 @@ class BimanualModelPolicy:
                  dataset_debug:bool=True,
                  always_refresh:bool=False,
                  dropout_train:bool=False,
+                 right_hand_relative:bool=False,
                 ):
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
@@ -63,6 +65,7 @@ class BimanualModelPolicy:
         self.frame_interval = frame_interval
         self.images_left = []
         self.images_right = []
+        self.right_hand_relative = right_hand_relative  
         self.step = 0
         self.left_pose = None
         self.right_pose = None
@@ -133,13 +136,20 @@ class BimanualModelPolicy:
         right_input_padded[-right_input.shape[0]:] = right_input
         return left_input_padded, right_input_padded
         
-    def _calculate_new_pose(self, pose, delta):
-        new_location = pose[:3] + delta[:3]
-        rpy_delta = R.from_euler('zyx', delta[3:6])
-        current_rpy = R.from_quat(pose[3:7])
-        new_quaternion = (rpy_delta * current_rpy).as_quat()
-        # new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
-        return np.concatenate([new_location, new_quaternion])
+    def _calculate_new_pose(self, pose, delta, mode:Literal['left', 'right'], left_pose=None):
+        if self.right_hand_relative and mode == 'right':
+            assert left_pose is not None
+            right_location = left_pose[:3] + delta[:3]
+            right_quaternion = R.from_quat(pose[3:7]) * R.from_quat(left_pose[3:7]).inv()
+            new_pose = np.concatenate([right_location, right_quaternion])
+        else:
+            new_location = pose[:3] + delta[:3]
+            rpy_delta = R.from_euler('zyx', delta[3:6])
+            current_rpy = R.from_quat(pose[3:7])
+            new_quaternion = (rpy_delta * current_rpy).as_quat()
+            # new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
+            new_pose = np.concatenate([new_location, new_quaternion])
+            return new_pose
     
     def generate_action_buffer(self, current_pose, new_pose):
         diff = new_pose - current_pose
@@ -185,8 +195,8 @@ class BimanualModelPolicy:
             if self.left_pose is None or self.always_refresh:
                 self.left_pose = observation['left_pose']
                 self.right_pose = observation['right_pose']
-            self.left_pose = left_pose_new = self._calculate_new_pose( self.left_pose, action[0][:6])
-            self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1][:6])
+            self.left_pose = left_pose_new = self._calculate_new_pose( self.left_pose, action[0][:6], 'left')
+            self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1][:6], 'right', left_pose=self.left_pose)
             left_gripper_new = np.zeros((1,))
             right_gripper_new = np.zeros((1,))
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
@@ -229,7 +239,7 @@ def main(args):
     model_ckpt_path = args['model_ckpt_path']
     frame_interval = args['frame_interval']
     dropout_train = args['dropout_train']
-    # inject_noise = False
+    right_hand_relative = args['right_hand_relative']
     MODEL_POLICY_START_FRAME = 260
     # MODEL_POLICY_START_FRAME -= 1
     RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 20
@@ -245,7 +255,7 @@ def main(args):
     # frame_interval = 20
     # model_ckpt_path = None
     # model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-23_15-06-01/checkpoint_300'
-    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train)
+    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train, right_hand_relative=right_hand_relative)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
@@ -408,5 +418,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_ckpt_path', action='store', type=str, required=True)
     parser.add_argument('--frame_interval', action='store', type=int, default=10)
     parser.add_argument('--dropout_train', action='store_true',default=False)
+    parser.add_argument('--right_hand_relative', action='store_true', default=False)
     main(vars(parser.parse_args()))
 

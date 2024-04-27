@@ -57,6 +57,9 @@ def make_ee_sim_env(task_name):
     elif 'sim_openlid' in task_name:
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_ee_openlid.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
+        # breakpoint()
+        physics.model.opt.timestep = 0.001  # Decrease physics timestep
+        physics.model.opt.iterations = 100 
         task = OpenLidEETask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                     n_sub_steps=None, flat_observation=False)

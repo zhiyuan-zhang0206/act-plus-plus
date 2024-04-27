@@ -1,10 +1,11 @@
 <mujoco>
     <asset>
-        <mesh name="cuplid_cup" file="cuplid_cup.stl" scale="0.82 0.82 1"/>
+        <mesh name="cuplid_cup" file="cuplid_cup.stl" scale="0.8 0.8 1"/>
     </asset>
     <worldbody>
         <body name="cuplid_cup" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
-            <geom type="mesh" name="cuplid_cup" mesh="cuplid_cup" rgba="0 0 1 1" />
+            <geom type="mesh" name="cuplid_cup" mesh="cuplid_cup" pos="0 0 0.0" rgba="0.7 0.4 0 1" contype="0" conaffinity="0"/>
+            <geom type="cylinder" pos="0 0 0.065" size="0.035 0.06" rgba="1 0 0 0" />
             <joint name="cuplid_cup_joint" type="free"/>
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
         </body>

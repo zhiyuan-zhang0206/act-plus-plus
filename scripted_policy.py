@@ -303,24 +303,31 @@ class OpenLidPolicy(BasePolicy):
         if random_values is None:
             meet_xyz = cup_xyz + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.15 + np.random.uniform(-0.05, 0.1)
+            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.05, 0.0), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
+            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.0, 0.05), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
+            left_hand_tilt_angle = np.random.uniform(0, 20)
+            left_hand_tilt_angle = 15
             random_values = {
                 "meet_xyz": meet_xyz,
+                "pre_meet_left": pre_meet_left,
+                'pre_meet_right': pre_meet_right,
             }
         else:
             logger.info(f"Using given random values.")
         # separate_xyz = meet_xyz + np.array([0.1, 0, 0.1])
-        
+        left_hold_quaternion = left_initial_quat * Quaternion(axis=[0, 1, 0], angle=np.deg2rad(left_hand_tilt_angle))
         self.left_trajectory = [
             {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            # {"t": 400,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 10,  "xyz": cup_xyz +  np.array(  [-0.03, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 25,  "xyz": cup_xyz + np.array(  [0.0, 0.0, 0.06]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 40,  "xyz": cup_xyz + np.array(  [0.05, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 55,  "xyz": cup_xyz +   np.array([0.05, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 100,  "xyz":  meet_xyz,    "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 300,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 330,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 360,  "xyz": meet_xyz,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 400,  "xyz": meet_xyz,    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 40,  "xyz": cup_xyz + np.array(  [0.06, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 55,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 260,  "xyz": random_values['pre_meet_left'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 360,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
         ]
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
@@ -328,16 +335,22 @@ class OpenLidPolicy(BasePolicy):
         vertical_quaternion = right_initial_quat * Quaternion(axis=[1.0, 0.0, 0.0], degrees=90)
         self.right_trajectory = [
             {"t": 0,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
+            # {"t": 400,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
             {"t": 20, "xyz":  right_initial_loc,            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 60, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 130, "xyz":  meet_xyz + np.array([-0.06, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 180, "xyz":  meet_xyz + np.array([-0.06, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 200, "xyz":  meet_xyz + np.array([-0.11, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 400, "xyz":  meet_xyz + np.array([-0.15, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            
+            {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 250, "xyz":  random_values['pre_meet_right'],            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 300, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 380, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.02, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
         ]
         self.random_values = random_values
-
+        # Asserting the start and end time range for the left and right arm trajectories
+        left_start_times = [step['t'] for step in self.left_trajectory]
+        right_start_times = [step['t'] for step in self.right_trajectory]
+        assert left_start_times[0] == right_start_times[0], "Left and right arm trajectories must start at the same time."
+        assert left_start_times[-1] == right_start_times[-1], "Left and right arm trajectories must end at the same time."
+        logger.info(f"Trajectories for both arms start at time {left_start_times[0]} and end at time {left_start_times[-1]}")
 
 def test_policy(task_name):
     # example rolling out pick_and_transfer policy

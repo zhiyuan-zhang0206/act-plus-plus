@@ -9,6 +9,7 @@ from pyquaternion import Quaternion
 START_FRAME = 260
 START_FRAME -= 1
 TIME_INTERVAL = 10
+RIGHT_HAND_RELATIVE = True
 language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
 
@@ -55,8 +56,8 @@ def process_data(path, save_dir, debug=False):
     right_rpy_diff = right_quaternion_diffs.as_euler('zyx')
     
     # right hand as relative
-    right_location_relative = right_pose[:, :3] - left_pose[:, :3]
-    right_rpy_relative = (R.from_quat(right_quaternion) * R.from_quat(left_quaternion).inv()).as_euler('zyx')
+    right_location_relative = (right_pose[:, :3] - left_pose[:, :3])[1:]
+    right_rpy_relative = ((R.from_quat(right_quaternion) * R.from_quat(left_quaternion).inv()).as_euler('zyx'))[1:]
     right_location_relative_diff = np.diff(right_location_relative, axis=0)
     right_rpy_relative_diff = R.from_euler('zyx', right_rpy_relative[1:]) * R.from_euler('zyx', right_rpy_relative[:-1]).inv()
     
@@ -69,12 +70,12 @@ def process_data(path, save_dir, debug=False):
     data = {
         'world_vector_left': left_vector_diff,
         'rotation_delta_left': left_rpy_diff, #left_aa_diff,
-        'world_vector_right': right_vector_diff,
-        'world_vector_right_relative': right_location_relative,
-        'rotation_delta_right_relative': right_rpy_relative.as_euler('zyx'),
-        'world_vector_right_relative_diff': right_location_relative_diff,
-        'rotation_delta_right_relative_diff': right_rpy_relative_diff.as_euler('zyx'),
-        'rotation_delta_right': right_rpy_diff, #right_aa_diff,
+        'world_vector_right': right_vector_diff if not RIGHT_HAND_RELATIVE else right_location_relative,
+        'rotation_delta_right': right_rpy_diff if not RIGHT_HAND_RELATIVE else right_rpy_relative.as_euler('zyx'),
+        # 'world_vector_right_relative': right_location_relative,
+        # 'rotation_delta_right_relative': right_rpy_relative.as_euler('zyx'),
+        # 'world_vector_right_relative_diff': right_location_relative_diff,
+        # 'rotation_delta_right_relative_diff': right_rpy_relative_diff.as_euler('zyx'),
         'image_left': (np.clip(left_image, 0, 255) ).astype(np.uint8),
         'image_right': (np.clip(right_image, 0, 255) ).astype(np.uint8),
         'gripper_closedness_action_left': action_left,
