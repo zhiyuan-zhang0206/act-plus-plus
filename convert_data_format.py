@@ -56,13 +56,29 @@ def process_data(path, save_dir, debug=False):
     right_rpy_diff = right_quaternion_diffs.as_euler('zyx')
     
     # right hand as relative
+    right_quaternion_init = R.from_quat([0, 0, 0, -1])
     right_location_relative = (right_pose[:, :3] - left_pose[:, :3])[1:]
-    right_rpy_relative = ((R.from_quat(right_quaternion) * R.from_quat(left_quaternion).inv()).as_euler('zyx'))[1:]
-    right_location_relative_diff = np.diff(right_location_relative, axis=0)
-    right_rpy_relative_diff = R.from_euler('zyx', right_rpy_relative[1:]) * R.from_euler('zyx', right_rpy_relative[:-1]).inv()
+    right_rpy_relative = ((R.from_quat(right_quaternion) * right_quaternion_init.inv() * R.from_quat(left_quaternion).inv()  ).as_euler('zyx'))[1:]
+    # if out of range -pi/2, pi/2, then add or subtract pi
+    out_of_range_mask = np.abs(right_rpy_relative) > np.pi/2
+    right_rpy_relative[out_of_range_mask] = right_rpy_relative[out_of_range_mask] - np.pi * np.sign(right_rpy_relative[out_of_range_mask])
+    # print(R.from_quat(right_quaternion[0]).as_quat())
+    # print(right_quaternion_init.inv().as_quat())
+    # print(R.from_quat(left_quaternion[0]).inv().as_quat())
+    # print(R.from_quat(right_quaternion[0]) * right_quaternion_init.inv() * R.from_quat(left_quaternion[0]).inv())
+    # R_final = R.from_quat(right_quaternion[0]) * right_quaternion_init.inv() * R.from_quat(left_quaternion[0]).inv()
+    # print(R_final.as_quat())
+    # print(R_final.as_matrix())
+    # print(R_final.as_euler('zyx'))
+    # print(right_rpy_relative[0])
+    # breakpoint()
+    # sys.exit()
+    # right_location_relative_diff = np.diff(right_location_relative, axis=0)
+    # right_rpy_relative_diff = R.from_euler('zyx', right_rpy_relative[1:]) * R.from_euler('zyx', right_rpy_relative[:-1]).inv()
     
-    
-    update_max_min(left_vector_diff, right_vector_diff, left_rpy_diff, right_rpy_diff)
+    right_vector_diff = right_vector_diff if not RIGHT_HAND_RELATIVE else right_location_relative
+    rotation_delta_right = right_rpy_diff if not RIGHT_HAND_RELATIVE else right_rpy_relative
+    update_max_min(left_vector_diff, right_vector_diff, left_rpy_diff, rotation_delta_right)
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
     
@@ -70,8 +86,8 @@ def process_data(path, save_dir, debug=False):
     data = {
         'world_vector_left': left_vector_diff,
         'rotation_delta_left': left_rpy_diff, #left_aa_diff,
-        'world_vector_right': right_vector_diff if not RIGHT_HAND_RELATIVE else right_location_relative,
-        'rotation_delta_right': right_rpy_diff if not RIGHT_HAND_RELATIVE else right_rpy_relative.as_euler('zyx'),
+        'world_vector_right': right_vector_diff,
+        'rotation_delta_right': rotation_delta_right,
         # 'world_vector_right_relative': right_location_relative,
         # 'rotation_delta_right_relative': right_rpy_relative.as_euler('zyx'),
         # 'world_vector_right_relative_diff': right_location_relative_diff,
@@ -113,6 +129,9 @@ def main():
     save_dir = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
     paths = sorted(list(hdf5_directory.glob('*.hdf5')))
+    test = False
+    if test:
+        paths = paths[1:3]
     # process_data(paths[0], save_dir, debug=True)
     for i, p in tqdm(list(enumerate(paths))):
         process_data(p, save_dir, debug= i==0)

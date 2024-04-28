@@ -1,8 +1,8 @@
 import pathlib
 import os
-
+from pathlib import Path
 ### Task parameters
-DATA_DIR = '/home/zfu/interbotix_ws/src/act/data' if os.getlogin() == 'zfu' else '/scr/tonyzhao/datasets'
+DATA_DIR = (Path(__file__).parent / 'generated_data').as_posix()
 SIM_TASK_CONFIGS = {
     'sim_stir_scripted': {
         'dataset_dir': DATA_DIR + '/sim_stir_scripted',

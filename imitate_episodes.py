@@ -1,6 +1,8 @@
+import os
+os.environ['MUJOCO_GL'] = 'osmesa'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 import torch
 import numpy as np
-import os
 import pickle
 import argparse
 import matplotlib.pyplot as plt
@@ -17,7 +19,7 @@ from constants import PUPPET_GRIPPER_JOINT_OPEN
 from utils import load_data # data functions
 from utils import sample_box_pose, sample_insertion_pose # robot functions
 from utils import compute_dict_mean, set_seed, detach_dict, calibrate_linear_vel, postprocess_base_action # helper functions
-from policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
+from policy import ACTPolicy #, CNNMLPPolicy, DiffusionPolicy
 from visualize_episodes import save_videos
 
 from detr.models.latent_model import Latent_Model_Transformer
@@ -664,3 +666,6 @@ if __name__ == '__main__':
     parser.add_argument('--no_encoder', action='store_true')
     
     main(vars(parser.parse_args()))
+
+# python3 imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+# python3 imitate_episodes.py --task_name sim_stir_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
