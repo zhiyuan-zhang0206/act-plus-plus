@@ -22,7 +22,7 @@ from loguru import logger
 # e = IPython.embed
 
 # python3 record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
-# python3 record_sim_episodes.py --task_name sim_stir_scripted --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
+# python3 record_sim_episodes.py --task_name stir --dataset_dir /root/autodl-tmp/act-plus-plus/generated_data --num_episodes 10
 
 image_idx = 0
 debug = False
@@ -272,7 +272,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
+    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='stir')
     parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')

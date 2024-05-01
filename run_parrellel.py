@@ -7,7 +7,7 @@ def run_command(command):
 parrellel_number = 5
 total_number = 500
 overall_start_index = 0
-dataset_path = Path('/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted')
+dataset_path = Path('/home/users/ghc/zzy/act-plus-plus/generated_data/stir')
 if dataset_path.exists() and overall_start_index == 0:
     import shutil
     shutil.rmtree(dataset_path)

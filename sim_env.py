@@ -35,25 +35,25 @@ def make_sim_env(task_name, object_info:dict=None)->control.Environment:
                                         right_gripper_qvel (1)]     # normalized gripper velocity (pos: opening, neg: closing)
                         "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
     """
-    if 'sim_transfer_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'bimanual_viperx_transfer_cube.xml')
-        physics = mujoco.Physics.from_xml_path(xml_path)
-        task = TransferCubeTask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
-                                  n_sub_steps=None, flat_observation=False)
-    elif 'sim_insertion' in task_name:
-        xml_path = os.path.join(XML_DIR, f'bimanual_viperx_insertion.xml')
-        physics = mujoco.Physics.from_xml_path(xml_path)
-        task = InsertionTask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
-                                  n_sub_steps=None, flat_observation=False)
-    elif 'sim_stir' in task_name:
+    # if 'sim_transfer_cube' in task_name:
+    #     xml_path = os.path.join(XML_DIR, f'bimanual_viperx_transfer_cube.xml')
+    #     physics = mujoco.Physics.from_xml_path(xml_path)
+    #     task = TransferCubeTask(random=False)
+    #     env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+    #                               n_sub_steps=None, flat_observation=False)
+    # elif 'sim_insertion' in task_name:
+    #     xml_path = os.path.join(XML_DIR, f'bimanual_viperx_insertion.xml')
+    #     physics = mujoco.Physics.from_xml_path(xml_path)
+    #     task = InsertionTask(random=False)
+    #     env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+    #                               n_sub_steps=None, flat_observation=False)
+    if task_name == 'stir':
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_stir.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = StirTask(random=False, object_info=object_info)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
-    elif 'sim_openlid' in task_name:
+    elif task_name == 'openlid':
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_openlid.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = OpenLidTask(random=False, object_info=object_info)

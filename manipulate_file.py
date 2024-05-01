@@ -12,5 +12,5 @@ def remove_all_file(directory, suffix):
         if any(filename.endswith(suffix) for suffix in suffixes):
             os.remove(os.path.join(directory, filename))
 
-path = '/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted'
+path = '/home/users/ghc/zzy/act-plus-plus/generated_data/stir'
 remove_all_file(path, ['.zip', '.hdf5'])

@@ -101,7 +101,7 @@ class BimanualModelPolicy:
                 use_token_learner=True,
                 # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
                 # world_vector_range=(-0.06, 0.06),
-                world_vector_range=(-0.2, 0.2),
+                world_vector_range=(-0.25, 0.25),
                 )   
             self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
@@ -250,7 +250,7 @@ def main(args):
         os.makedirs(save_dir, exist_ok=True)
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
-    if task_name == 'sim_stir_scripted':
+    if task_name == 'stir':
         script_policy_cls = StirPolicy
     else:
         raise 
@@ -411,7 +411,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
+    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='stir')
     parser.add_argument('--save_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'evaluation_data').as_posix())
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')

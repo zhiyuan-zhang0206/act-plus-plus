@@ -31,6 +31,13 @@ def update_max_min(l1, l2, r1, r2):
     ROTATION_MAX = max(ROTATION_MAX, rotation_max)
     ROTATION_MIN = min(ROTATION_MIN, rotation_min)
 
+def wxyz_to_xyzw(quat):
+    if len(quat.shape) == 2:
+        assert quat.shape[1] == 4
+        return quat[:, [1,2,3,0]]
+    else:
+        return np.array([quat[1], quat[2], quat[3], quat[0]])
+
 def process_data(path, save_dir, debug=False):
     save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
@@ -41,6 +48,8 @@ def process_data(path, save_dir, debug=False):
         right_image = root['/observations/images/right_angle'][()]
         action = root['/action'][()]
         
+        left_pose[:, 3:] = wxyz_to_xyzw(left_pose[:, 3:])
+        right_pose[:, 3:] = wxyz_to_xyzw(right_pose[:, 3:])
         # left_pose = left_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
         # right_pose = right_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
         # left_image = left_image[START_FRAME::TIME_INTERVAL]
@@ -62,12 +71,13 @@ def process_data(path, save_dir, debug=False):
     right_rpy_diff = right_quaternion_diffs.as_euler('zyx')
     
     # right hand as relative
-    right_quaternion_init = R.from_quat([0, 0, 0, -1])
     right_location_relative = (right_pose[:, :3] - left_pose[:, :3])[1:]
-    right_rpy_relative = ((R.from_quat(right_quaternion) * right_quaternion_init.inv() * R.from_quat(left_quaternion).inv()  ).as_euler('zyx'))[1:]
+    right_quaternion_init = R.from_quat([0, 0, -1, 0])
+    right_quaternion_relative = R.from_quat(right_quaternion) * right_quaternion_init.inv() * R.from_quat(left_quaternion).inv()
+    right_rpy_relative = right_quaternion_relative.as_euler('zyx')[1:]
     # if out of range -pi/2, pi/2, then add or subtract pi
-    out_of_range_mask = np.abs(right_rpy_relative) > np.pi/2
-    right_rpy_relative[out_of_range_mask] = right_rpy_relative[out_of_range_mask] - np.pi * np.sign(right_rpy_relative[out_of_range_mask])
+    # out_of_range_mask = np.abs(right_rpy_relative) > np.pi/2
+    # right_rpy_relative[out_of_range_mask] = right_rpy_relative[out_of_range_mask] - np.pi * np.sign(right_rpy_relative[out_of_range_mask])
     # print(R.from_quat(right_quaternion[0]).as_quat())
     # print(right_quaternion_init.inv().as_quat())
     # print(R.from_quat(left_quaternion[0]).inv().as_quat())
@@ -115,7 +125,7 @@ def process_data(path, save_dir, debug=False):
     np.save(save_path, data)
 
 def test():
-    hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/sim_stir_scripted/episode_0005.hdf5'
+    hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/stir/episode_0005.hdf5'
     with h5py.File(hdf5_path, 'r') as root:        
         left_pose = root['/observations/left_pose'][()]  
         right_pose = root['/observations/right_pose'][()]# [START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
@@ -131,11 +141,11 @@ def test():
     # print(random_values)
 
 def main():
-    hdf5_directory = Path(__file__).parent / 'generated_data' / 'sim_stir_scripted'
+    hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
     save_dir = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
     paths = sorted(list(hdf5_directory.glob('*.hdf5')))
-    test = True
+    test = False
     if test:
         paths = paths[1:3]
     # process_data(paths[0], save_dir, debug=True)

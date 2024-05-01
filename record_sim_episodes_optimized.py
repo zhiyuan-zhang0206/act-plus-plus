@@ -26,8 +26,8 @@ def assemble_image_for_oncreen_render(ts):
     return image
 
 task_name_to_script_policy_cls = {
-    'sim_stir_scripted': StirPolicy,
-    'sim_openlid_scripted': OpenLidPolicy,
+    'stir': StirPolicy,
+    'openlid': OpenLidPolicy,
 }
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
@@ -190,16 +190,16 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='sim_stir_scripted')
+    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False, default='stir')
     parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'generated_data').as_posix())
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_optimized.py --task_name sim_stir_scripted --dataset_dir generated_data/sim_stir_scripted --onscreen_render
-# python record_sim_episodes_optimized.py --task_name sim_openlid_scripted --dataset_dir generated_data/sim_openlid_scripted --onscreen_render
+# python record_sim_episodes_optimized.py --task_name stir --dataset_dir generated_data/stir --onscreen_render
+# python record_sim_episodes_optimized.py --task_name openlid --dataset_dir generated_data/openlid --onscreen_render
 
-# python visualize_episodes.py --dataset_dir generated_data/sim_stir_scripted
-# python visualize_episodes.py --dataset_dir generated_data/sim_openlid_scripted
+# python visualize_episodes.py --dataset_dir generated_data/stir
+# python visualize_episodes.py --dataset_dir generated_data/openlid
 

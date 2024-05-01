@@ -54,6 +54,7 @@ def main(args):
 
     # get task parameters
     is_sim = task_name[:4] == 'sim_'
+    is_sim = True # for this graduation project always True
     if is_sim or task_name == 'all':
         from constants import SIM_TASK_CONFIGS
         task_config = SIM_TASK_CONFIGS[task_name]
@@ -147,7 +148,7 @@ def main(args):
     config_path = os.path.join(ckpt_dir, 'config.pkl')
     expr_name = ckpt_dir.split('/')[-1]
     if not is_eval:
-        wandb.init(project="mobile-aloha2", reinit=True, entity="mobile-aloha2", name=expr_name)
+        wandb.init(project="mobile-aloha2", name=expr_name)
         wandb.config.update(config)
     with open(config_path, 'wb') as f:
         pickle.dump(config, f)
@@ -673,4 +674,4 @@ if __name__ == '__main__':
     main(vars(parser.parse_args()))
 
 # python3 imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
-# python3 imitate_episodes.py --task_name sim_stir_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+# python3 imitate_episodes.py --task_name stir --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
