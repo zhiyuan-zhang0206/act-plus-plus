@@ -54,6 +54,7 @@ class BimanualModelPolicy:
                  always_refresh:bool=False,
                  dropout_train:bool=False,
                  right_hand_relative:bool=False,
+                 version:str='0.1.4'
                 ):
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
@@ -74,7 +75,7 @@ class BimanualModelPolicy:
         sys.path.append('/home/users/ghc/zzy')
         rtx = importlib.import_module('open_x_embodiment-main' )
         self.batch_size = 14
-        dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False)
+        dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False, version = version)
         data = next(iter(dataset))
         self.action_storage = data['action']
         index = int(data['observation']['index'][self.batch_size-1, -1])
@@ -240,6 +241,7 @@ def main(args):
     frame_interval = args['frame_interval']
     dropout_train = args['dropout_train']
     right_hand_relative = args['right_hand_relative']
+    version = args['version']
     MODEL_POLICY_START_FRAME = 260
     # MODEL_POLICY_START_FRAME -= 1
     RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 20
@@ -255,7 +257,7 @@ def main(args):
     # frame_interval = 20
     # model_ckpt_path = None
     # model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-23_15-06-01/checkpoint_300'
-    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train, right_hand_relative=right_hand_relative)
+    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train, right_hand_relative=right_hand_relative, version=version)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
@@ -419,5 +421,6 @@ if __name__ == '__main__':
     parser.add_argument('--frame_interval', action='store', type=int, default=10)
     parser.add_argument('--dropout_train', action='store_true',default=False)
     parser.add_argument('--right_hand_relative', action='store_true', default=False)
+    parser.add_argument('--version', action='store', type=str, default='0.1.4')
     main(vars(parser.parse_args()))
 

@@ -9,7 +9,7 @@ from pyquaternion import Quaternion
 START_FRAME = 260
 START_FRAME -= 1
 TIME_INTERVAL = 10
-RIGHT_HAND_RELATIVE = True
+RIGHT_HAND_RELATIVE = False
 language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
 
@@ -35,12 +35,18 @@ def process_data(path, save_dir, debug=False):
     save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
-        left_pose = root['/observations/left_pose'][()][START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
-        right_pose = root['/observations/right_pose'][()][START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
-        left_image = root['/observations/images/left_angle'][()][START_FRAME::TIME_INTERVAL]
-        right_image = root['/observations/images/right_angle'][()][START_FRAME::TIME_INTERVAL]
-        action = root['/action'][()][START_FRAME::TIME_INTERVAL]
+        left_pose = root['/observations/left_pose'][()]
+        right_pose = root['/observations/right_pose'][()]
+        left_image = root['/observations/images/left_angle'][()]
+        right_image = root['/observations/images/right_angle'][()]
+        action = root['/action'][()]
         
+        # left_pose = left_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
+        # right_pose = right_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
+        # left_image = left_image[START_FRAME::TIME_INTERVAL]
+        # right_image = right_image[START_FRAME::TIME_INTERVAL]
+        # action = action[START_FRAME::TIME_INTERVAL]
+
         random_values = {}
         for key, dataset in root['random_values'].items():
             random_values[key] = dataset[()]
@@ -129,7 +135,7 @@ def main():
     save_dir = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
     paths = sorted(list(hdf5_directory.glob('*.hdf5')))
-    test = False
+    test = True
     if test:
         paths = paths[1:3]
     # process_data(paths[0], save_dir, debug=True)

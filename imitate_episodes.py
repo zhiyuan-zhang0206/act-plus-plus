@@ -303,7 +303,11 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
         env_max_reward = 0
     else:
         from sim_env import make_sim_env
-        env = make_sim_env(task_name)
+        from ee_sim_env import make_ee_sim_env
+        env_ee = make_ee_sim_env(task_name)
+        env_ee.reset()
+        object_info = env_ee.task.object_info
+        env = make_sim_env(task_name, object_info)
         env_max_reward = env.task.max_reward
 
     query_frequency = policy_config['num_queries']
@@ -319,14 +323,14 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     episode_returns = []
     highest_rewards = []
     for rollout_id in range(num_rollouts):
-        if real_robot:
-            e()
+        # if real_robot:
+        #     e()
         rollout_id += 0
         ### set task
-        if 'sim_transfer_cube' in task_name:
-            BOX_POSE[0] = sample_box_pose() # used in sim reset
-        elif 'sim_insertion' in task_name:
-            BOX_POSE[0] = np.concatenate(sample_insertion_pose()) # used in sim reset
+        # if 'sim_transfer_cube' in task_name:
+            # BOX_POSE[0] = sample_box_pose() # used in sim reset
+        # elif 'sim_insertion' in task_name:
+            # BOX_POSE[0] = np.concatenate(sample_insertion_pose()) # used in sim reset
 
         ts = env.reset()
 
@@ -590,7 +594,8 @@ def train_bc(train_dataloader, val_dataloader, config):
             print(summary_string)
                 
         # evaluation
-        if (step > 0) and (step % eval_every == 0):
+        # if (step > 0) and (step % eval_every == 0):
+        if (step % eval_every == 0):
             # first save then eval
             ckpt_name = f'policy_step_{step}_seed_{seed}.ckpt'
             ckpt_path = os.path.join(ckpt_dir, ckpt_name)

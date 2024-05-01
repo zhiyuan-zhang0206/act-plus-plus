@@ -68,8 +68,8 @@ class BimanualViperXTask(base.Task):
         super().__init__(random=random)
         self.render = False
         
-    def start_render(self):
-        self.render = True
+    def set_render_state(self, render:bool):
+        self.render = render
 
     def before_step(self, action, physics):
         left_arm_action = action[:6]
@@ -281,43 +281,38 @@ class StirTask(BimanualViperXTask):
 
     def get_reward(self, physics):
         # return whether peg touches the pin
-        return 4
-        all_contact_pairs = []
-        for i_contact in range(physics.data.ncon):
-            id_geom_1 = physics.data.contact[i_contact].geom1
-            id_geom_2 = physics.data.contact[i_contact].geom2
-            name_geom_1 = physics.model.id2name(id_geom_1, 'geom')
-            name_geom_2 = physics.model.id2name(id_geom_2, 'geom')
-            contact_pair = (name_geom_1, name_geom_2)
-            all_contact_pairs.append(contact_pair)
+        # return 4
+        all_contact_pairs = get_contact_pairs(physics)
 
-        touch_right_gripper = ("red_peg", "vx300s_right/10_right_gripper_finger") in all_contact_pairs
-        touch_left_gripper = ("socket-1", "vx300s_left/10_left_gripper_finger") in all_contact_pairs or \
-                             ("socket-2", "vx300s_left/10_left_gripper_finger") in all_contact_pairs or \
-                             ("socket-3", "vx300s_left/10_left_gripper_finger") in all_contact_pairs or \
-                             ("socket-4", "vx300s_left/10_left_gripper_finger") in all_contact_pairs
+        touch_right_gripper = tuple(sorted(["spoon_handle_collision", "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs
+        touch_left_gripper = tuple(sorted(["cup_handle_collision", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
+                             
 
-        peg_touch_table = ("red_peg", "table") in all_contact_pairs
-        socket_touch_table = ("socket-1", "table") in all_contact_pairs or \
-                             ("socket-2", "table") in all_contact_pairs or \
-                             ("socket-3", "table") in all_contact_pairs or \
-                             ("socket-4", "table") in all_contact_pairs
-        peg_touch_socket = ("red_peg", "socket-1") in all_contact_pairs or \
-                           ("red_peg", "socket-2") in all_contact_pairs or \
-                           ("red_peg", "socket-3") in all_contact_pairs or \
-                           ("red_peg", "socket-4") in all_contact_pairs
-        pin_touched = ("red_peg", "pin") in all_contact_pairs
-
+        closeness_reward = 0
+        object_pose = physics.data.qpos.copy()[16:]
+        cup_location = object_pose[:3]
+        spoon_location = object_pose[7:10]
+        x_y_distance = np.linalg.norm(cup_location[:2] - spoon_location[:2])
+        z_distance = np.abs(cup_location[2] - spoon_location[2])
+        weighted_distance = (x_y_distance * 2 + z_distance) / 2
+        closeness_reward = (0.2 - np.clip(weighted_distance, 0, 0.2)) * 10
         reward = 0
-        if touch_left_gripper and touch_right_gripper: # touch both
-            reward = 1
-        if touch_left_gripper and touch_right_gripper and (not peg_touch_table) and (not socket_touch_table): # grasp both
-            reward = 2
-        if peg_touch_socket and (not peg_touch_table) and (not socket_touch_table): # peg and socket touching
-            reward = 3
-        if pin_touched: # successful insertion
-            reward = 4
+        reward += int(touch_left_gripper)
+        reward += int(touch_right_gripper)
+        reward += closeness_reward
+
         return reward
+
+def get_contact_pairs(physics):
+    all_contact_pairs = set()
+    for i_contact in range(physics.data.ncon):
+        id_geom_1 = physics.data.contact[i_contact].geom1
+        id_geom_2 = physics.data.contact[i_contact].geom2
+        name_geom_1 = physics.model.id2name(id_geom_1, 'geom')
+        name_geom_2 = physics.model.id2name(id_geom_2, 'geom')
+        contact_pair = tuple(sorted([name_geom_1, name_geom_2]))
+        all_contact_pairs.add(contact_pair)
+    return all_contact_pairs
 
 class OpenLidTask(BimanualViperXTask):
     def __init__(self, random=None, object_info:dict=None):
@@ -344,7 +339,27 @@ class OpenLidTask(BimanualViperXTask):
         return env_state
 
     def get_reward(self, physics):
-        return 4
+        all_contact_pairs = get_contact_pairs(physics)
+        reward = 0
+        lid_collision_names = ["cuplid_lid_0_collision",
+            "cuplid_lid_1_collision",
+            "cuplid_lid_2_collision",
+            "cuplid_lid_3_collision"
+            "cuplid_lid_4_collision"
+            "cuplid_lid_5_collision"
+            "cuplid_lid_6_collision"
+            "cuplid_lid_7_collision"]
+        touch_right_gripper = any([tuple(sorted([lid_name, "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs for lid_name in lid_collision_names])
+        touch_left_gripper = tuple(sorted(["cuplid_cup_collision", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
+        reward += int(touch_left_gripper)
+        reward += int(touch_right_gripper)
+        object_pose = physics.data.qpos.copy()[16:]
+        cup_location = object_pose[:3]
+        lid_location = object_pose[7:10]
+        x_y_distance = np.linalg.norm(cup_location[:2] - lid_location[:2])
+        farness_reward = np.clip(x_y_distance, 0, 0.1) * 20
+        reward += farness_reward
+        return reward
 
 
 def get_action(master_bot_left, master_bot_right):

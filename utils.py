@@ -6,6 +6,7 @@ import pickle
 import fnmatch
 import cv2
 from time import time
+from loguru import logger
 # from torch.utils.data import TensorDataset, DataLoader
 # import torchvision.transforms as transforms
 
@@ -198,7 +199,7 @@ try:
 
         return stats, all_episode_len
 except:
-    print('no torch')
+    logger.info('no torch')
 
 
 def find_all_hdf5(dataset_dir, skip_mirrored_data):
@@ -322,7 +323,7 @@ def sample_openlid_pose():
     return np.concatenate([cup_pose, lid_pose])
 
 def sample_stir_pose():
-    x_range = [-0.05, -0.03]
+    x_range = [-0.05, -0.05]
     # y_range = [0.4, 0.6]
     y_range = [0.5, 0.5]
     z_range = [0, 0]
@@ -332,10 +333,10 @@ def sample_stir_pose():
     cup_quat = np.array([0.707107, 0, 0, -0.707107])
     cup_pose = np.concatenate([cup_position, cup_quat])
 
-    x_range = [0.1, 0.12]
+    x_range = [0.12, 0.12]
     # y_range = [0.4, 0.6]
     y_range = [0.5, 0.5]
-    z_range = [0.03, 0.05]
+    z_range = [0.05, 0.05]
     ranges = np.vstack([x_range, y_range, z_range])
     spoon_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
     # spoon_quat = np.array([0, 0, 0, 1])

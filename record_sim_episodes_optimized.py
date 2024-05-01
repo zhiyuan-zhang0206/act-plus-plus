@@ -82,7 +82,6 @@ def main(args):
         random_values = script_policy.random_values
         objects_start_pose = env_ee.task.objects_start_pose
         env_q = make_sim_env(task_name, object_info=object_info)
-        env_q.task.start_render()
         ts_q = env_q.reset()
         episode_q = [ts_q]
         if onscreen_render:
@@ -98,8 +97,10 @@ def main(args):
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
-                # if step == 250:
-                    # env_q.task.start_render()
+                if step == 250:
+                    env_q.task.set_render_state(True)
+                elif step == 0:
+                    env_q.task.set_render_state(False)
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
@@ -109,7 +110,9 @@ def main(args):
             continue
         plt.close()
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
-        
+        episode_return = np.sum([ts.reward for ts in episode_q[1:]])
+        episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
+        logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}')
 
         """
         For each timestep:
