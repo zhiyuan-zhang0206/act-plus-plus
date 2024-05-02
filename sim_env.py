@@ -341,15 +341,20 @@ class OpenLidTask(BimanualViperXTask):
     def get_reward(self, physics):
         all_contact_pairs = get_contact_pairs(physics)
         reward = 0
-        lid_collision_names = ["cuplid_lid_0_collision",
+        lid_collision_names = [
+            "cuplid_lid_0_collision",
             "cuplid_lid_1_collision",
             "cuplid_lid_2_collision",
-            "cuplid_lid_3_collision"
-            "cuplid_lid_4_collision"
-            "cuplid_lid_5_collision"
-            "cuplid_lid_6_collision"
-            "cuplid_lid_7_collision"]
+            "cuplid_lid_3_collision",
+            "cuplid_lid_4_collision",
+            "cuplid_lid_5_collision",
+            "cuplid_lid_6_collision",
+            "cuplid_lid_7_collision",
+            "cuplid_lid_cylinder_collision",
+        ]
         touch_right_gripper = any([tuple(sorted([lid_name, "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs for lid_name in lid_collision_names])
+        touch_right_gripper |= any([tuple(sorted([lid_name, "vx300s_right/10_left_gripper_finger"])) in all_contact_pairs for lid_name in lid_collision_names])
+        # print(touch_right_gripper)
         touch_left_gripper = tuple(sorted(["cuplid_cup_collision", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
         reward += int(touch_left_gripper)
         reward += int(touch_right_gripper)
