@@ -54,6 +54,7 @@ def main(args):
     num_episodes = args['num_episodes']
     onscreen_render = args['onscreen_render']
     render_start = args['render_start']
+    render_interval = args['render_interval']
     inject_noise = False
 
     if not os.path.isdir(dataset_dir):
@@ -102,6 +103,12 @@ def main(args):
                     env_q.task.set_render_state(False)
                 elif step == render_start:
                     env_q.task.set_render_state(True)
+                
+                if step % render_interval == 0 and step >= render_start:
+                    env_q.task.set_render_state(True)
+                else:
+                    env_q.task.set_render_state(False)
+                    
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
@@ -197,6 +204,7 @@ if __name__ == '__main__':
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
     parser.add_argument('--render_start', action='store', type=int, help='render_start', required=False, default=250)
+    parser.add_argument('--render_interval', action='store', type=int, help='render_interval', required=False, default=1)
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_optimized.py --task_name stir --dataset_dir generated_data/stir --onscreen_render

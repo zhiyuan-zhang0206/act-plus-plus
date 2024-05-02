@@ -6,7 +6,7 @@ os.environ['MUJOCO_GL'] = 'osmesa'
 import importlib
 import warnings
 from io import StringIO
-from utils import WORLD_VECTOR_MAX
+from utils import WORLD_VECTOR_MAX, ROTATION_MAX
 class FailedToConvergeError(Exception):
     pass
 class InterceptStdOut:
@@ -103,6 +103,7 @@ class BimanualModelPolicy:
                 # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
                 # world_vector_range=(-0.06, 0.06),
                 world_vector_range=(-WORLD_VECTOR_MAX, WORLD_VECTOR_MAX),
+                rotation_range=(-ROTATION_MAX, ROTATION_MAX)
                 )   
             self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
@@ -112,6 +113,8 @@ class BimanualModelPolicy:
             )
             logger.debug('model loaded')
         self.always_refresh = always_refresh
+        self.observed_pose = []
+        self.desired_pose = []
     
     def set_language_instruction(self, language_instruction:str):
         
@@ -142,13 +145,15 @@ class BimanualModelPolicy:
         if self.right_hand_relative and mode == 'right':
             assert left_pose is not None
             right_location = left_pose[:3] + delta[:3]
-            right_quaternion = R.from_quat(pose[3:7]) * R.from_quat(left_pose[3:7]).inv()
+            right_quaternion = R.from_quat(pose[[4,5,6,3]]) * R.from_quat(left_pose[[4,5,6,3]]).inv()
+            right_quaternion = right_quaternion[[3,0,1,2]]
             new_pose = np.concatenate([right_location, right_quaternion])
         else:
             new_location = pose[:3] + delta[:3]
             rpy_delta = R.from_euler('zyx', delta[3:6])
-            current_rpy = R.from_quat(pose[3:7])
+            current_rpy = R.from_quat(pose[[4,5,6,3]])
             new_quaternion = (rpy_delta * current_rpy).as_quat()
+            new_quaternion = new_quaternion[[3,0,1,2]]
             # new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
             new_pose = np.concatenate([new_location, new_quaternion])
             return new_pose
@@ -204,9 +209,21 @@ class BimanualModelPolicy:
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new,  left_gripper_new, right_pose_new, right_gripper_new])
             self.action_buffer = self.generate_action_buffer(current_pose, new_pose)
-        
         self.step += 1
-        return self.action_buffer.pop(0)
+        action = self.action_buffer.pop(0)
+        self.observed_pose.append(np.concatenate([observation['left_pose'], observation['right_pose']]))
+        self.desired_pose.append(action.copy())
+        return action
+
+    def print_observation_desired_history(self):
+        for step in range(len(self.observed_pose)):
+            print(f'step: {step:03d}: ')
+            # breakpoint()
+            observed = np.round(self.observed_pose[step], 3).tolist()
+            desired = np.round(self.desired_pose[step], 3).tolist()
+            print(f'observed: {observed[:3]}, {observed[3:7]}; {observed[8:11]}, {observed[11:15]}')
+            print(f'desired:  {desired[:3]}, {desired[3:7]}; {desired[8:11]}, {desired[11:15]}')
+            
 
     def reset(self, ):
         self.images_left = []
@@ -227,9 +244,8 @@ def make_action_q(observation):
     return action_q
     
 from tqdm import trange
-import random
-random.seed(42)
 import sys
+import random
 def main(args):
     intercepted = InterceptStdOut(sys.stdout)
     sys.stdout = intercepted
@@ -240,12 +256,15 @@ def main(args):
     always_refresh = args['always_refresh']
     model_ckpt_path = args['model_ckpt_path']
     frame_interval = args['frame_interval']
-    dropout_train = args['dropout_train']
+    # dropout_train = args['dropout_train']
     right_hand_relative = args['right_hand_relative']
     version = args['version']
+    rerun_when_error = args['rerun_when_error']
+    seed = args['seed']
+    random.seed(seed)
     MODEL_POLICY_START_FRAME = 260
     # MODEL_POLICY_START_FRAME -= 1
-    RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 20
+    RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 10
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
@@ -258,7 +277,8 @@ def main(args):
     # frame_interval = 20
     # model_ckpt_path = None
     # model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-23_15-06-01/checkpoint_300'
-    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=always_refresh, dropout_train=dropout_train, right_hand_relative=right_hand_relative, version=version)
+    model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
+                                       dropout_train=True, right_hand_relative=right_hand_relative, version=version)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
@@ -296,13 +316,15 @@ def main(args):
                 #     break
                 if step == RENDER_START_FRAME:
                     env_q.task.set_render_state(True)
+                elif step == 0:
+                    env_q.task.set_render_state(False)
                 # if step == MODEL_POLICY_START_FRAME:
                 #     policy = model_policy
                 # action_ee = policy(ts_q)
                 # if step >= MODEL_POLICY_START_FRAME:
                 # if step == 259:
                 #     return
-                if step >= 248:
+                if step >= 258:
                 #     print(action_1:= model_policy(ts_q))
                 #     print(action_2:= script_policy(ts_q))
                     action_1 = model_policy(ts_q)
@@ -351,9 +373,13 @@ def main(args):
                 #     print()
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
-            logger.info('Physics error, continue.')
             failed_times += 1
-            continue
+            if rerun_when_error:
+                logger.info('Physics error, continue.')
+                continue
+            else:
+                break
+        model_policy.print_observation_desired_history()
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
         data_dict = {
@@ -420,8 +446,10 @@ if __name__ == '__main__':
     parser.add_argument('--always_refresh', action='store_true', default=False)
     parser.add_argument('--model_ckpt_path', action='store', type=str, required=True)
     parser.add_argument('--frame_interval', action='store', type=int, default=10)
-    parser.add_argument('--dropout_train', action='store_true',default=False)
+    # parser.add_argument('--dropout_train', action='store_true',default=True)
     parser.add_argument('--right_hand_relative', action='store_true', default=False)
     parser.add_argument('--version', action='store', type=str, default='0.1.4')
+    parser.add_argument('--rerun_when_error', action='store_true', default=False)
+    parser.add_argument('--seed', action='store', type=int, default=0)
     main(vars(parser.parse_args()))
 

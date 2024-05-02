@@ -310,6 +310,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
         object_info = env_ee.task.object_info
         env = make_sim_env(task_name, object_info)
         env_max_reward = env.task.max_reward
+        env.task.set_render_state(True)
 
     query_frequency = policy_config['num_queries']
     if temporal_agg:
@@ -478,7 +479,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                 # time.sleep(max(0, DT - duration - culmulated_delay))
                 if duration >= DT:
                     culmulated_delay += (duration - DT)
-                    print(f'Warning: step duration: {duration:.3f} s at step {t} longer than DT: {DT} s, culmulated delay: {culmulated_delay:.3f} s')
+                    # print(f'Warning: step duration: {duration:.3f} s at step {t} longer than DT: {DT} s, culmulated delay: {culmulated_delay:.3f} s')
                 # else:
                 #     culmulated_delay = max(0, culmulated_delay - (DT - duration))
 

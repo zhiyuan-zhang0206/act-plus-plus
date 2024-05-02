@@ -409,4 +409,6 @@ from pathlib import Path
 data_config_path = Path(__file__).parent.parent / 'open_x_embodiment-main' / 'data_config.json'
 import json
 with data_config_path.open() as f:
-    WORLD_VECTOR_MAX = json.load(f)['world_vector_max']
+    data_config = json.load(f)
+    WORLD_VECTOR_MAX = data_config['world_vector_max']
+    ROTATION_MAX = data_config['rotation_max']

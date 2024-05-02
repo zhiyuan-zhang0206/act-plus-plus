@@ -67,7 +67,9 @@ class BimanualViperXTask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.render = True
-        
+        self.last_left_image = np.zeros((300,300,3), dtype=np.uint8)
+        self.last_right_image = np.zeros((300,300,3), dtype=np.uint8)
+
     def set_render_state(self, render:bool):
         self.render = render
 
@@ -131,9 +133,11 @@ class BimanualViperXTask(base.Task):
         if self.render:
             obs['images']['left_angle'] = physics.render(height=300, width=300, camera_id='left_angle')
             obs['images']['right_angle'] = physics.render(height=300, width=300, camera_id='right_angle')
+            self.last_left_image = obs['images']['left_angle'].copy()
+            self.last_right_image = obs['images']['right_angle'].copy()
         else:
-            obs['images']['left_angle'] = np.zeros((300,300,3), dtype=np.uint8)
-            obs['images']['right_angle'] = np.zeros((300,300,3), dtype=np.uint8)
+            obs['images']['left_angle'] = self.last_left_image
+            obs['images']['right_angle'] = self.last_right_image
         # <geom condim="0" contype="0" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="left_dummy" rgba="1 0 0 0" />
         obs['left_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_left/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_left/gripper_link'].copy()])
         obs['right_pose'] = np.concatenate([physics.named.data.site_xpos["vx300s_right/gripper_link_site"].copy(), physics.named.data.xquat['vx300s_right/gripper_link'].copy()])

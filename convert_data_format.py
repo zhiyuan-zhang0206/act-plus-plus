@@ -9,7 +9,7 @@ from pyquaternion import Quaternion
 START_FRAME = 260
 START_FRAME -= 1
 TIME_INTERVAL = 10
-RIGHT_HAND_RELATIVE = False
+RIGHT_HAND_RELATIVE = True
 language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
 
@@ -152,6 +152,7 @@ def main():
     for i, p in tqdm(list(enumerate(paths))):
         process_data(p, save_dir, debug= i==0)
     print(f"data ranges: {LOCATION_MIN=}, {LOCATION_MAX=}, {ROTATION_MIN=}, {ROTATION_MAX=}")
+    # return
     # select 10% and put into 'test', else 'train'
     train_path = save_dir / 'train'
     test_path = save_dir / 'test'

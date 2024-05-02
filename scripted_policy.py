@@ -237,8 +237,8 @@ class StirPolicy(BasePolicy):
         ]
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
-        right_down = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=60)
-        right_stir = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-30)
+        right_down = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=80)
+        right_stir = right_initial_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-10)
 
         self.right_trajectory = [
             {"t": 0,   "xyz": right_initial_loc,                            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
