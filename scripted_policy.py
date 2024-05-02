@@ -265,42 +265,20 @@ class OpenLidPolicy(BasePolicy):
         left_initial_loc = init_mocap_pose_left[:3]
         right_initial_loc = init_mocap_pose_right[:3]
         cup_info = np.array(ts_first.observation['env_state'])[:7]
-        cup_xyz = cup_info[:3]
-        cup_quat = cup_info[3:]
+        cup_xyz = cup_info[:3].copy()
+        cup_xyz[2] = 0
+        # cup_quat = cup_info[3:]
 
         lid_info = np.array(ts_first.observation['env_state'])[7:]
         lid_xyz = lid_info[:3].copy()
         lid_xyz[2] = 0
-        lid_quat = lid_info[3:]
+        # lid_quat = lid_info[3:]
 
-
-        # gripper_pick_quat_left = Quaternion(init_mocap_pose_left[3:])
-        # # gripper_pick_quat_left = gripper_pick_quat_left * Quaternion(axis=[0.0, 1.0, 0.0], degrees=0)
-        # # gripper_pick_quat_right = Quaternion(init_mocap_pose_right[3:])
-        # # gripper_pick_quat_right = gripper_pick_quat_right * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
-        # gripper_stir_quat_right =  Quaternion(init_mocap_pose_right[3:]) * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
-
-        # meet_xyz = np.array([0.2, 0.7, 0.3])
-        # lift_right = 0.00715
 
         left_initial_quat = Quaternion(np.array([1, 0 , 0, 0]))
-        hold_deltas = [
-            np.array([-0.0, 0, -0.1]),
-            np.array([-0.0, 0, -0.1]),
-            np.array([0.01, 0, -0.1]),
-            np.array([+0.02, 0, -0.1]),
-        ]
-        stir_deltas = [
-            np.array([-0.02, 0.01,     0.03]),
-            np.array([-0.01, -0.01,    0.03]),
-            np.array([0.01, 0.01,    0.03]),
-            np.array([-0.01, -0.01,    0.04]),
-            np.array([-0.02, 0.01,    0.04]),
-            np.array([-0.02, 0.01,    0.05]),
-            np.array([-0.01, -0.01,    0.06]),
-        ]
+
         if random_values is None:
-            meet_xyz = cup_xyz # + np.random.uniform(-0.1, 0.1, 3)
+            meet_xyz = cup_xyz.copy() # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.05, 0.0), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.0, 0.05), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
@@ -314,6 +292,8 @@ class OpenLidPolicy(BasePolicy):
         else:
             logger.info(f"Using given random values.")
         # separate_xyz = meet_xyz + np.array([0.1, 0, 0.1])
+        logger.debug(f'{cup_xyz=}')
+        logger.debug(f'{lid_xyz=}')
         left_hold_quaternion = left_initial_quat * Quaternion(axis=[0, 1, 0], angle=np.deg2rad(left_hand_tilt_angle))
         self.left_trajectory = [
             {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
