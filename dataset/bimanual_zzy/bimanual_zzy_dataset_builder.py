@@ -26,46 +26,46 @@ class Builder(tfds.core.GeneratorBasedBuilder):
                     "steps": tfds.features.Dataset(
                         {
                             "observation": {
-                                "index": tfds.features.Tensor(shape=(), dtype=tf.int64),
+                                "index": tfds.features.Tensor(shape=(), dtype=np.int64),
                                 "image_left": tfds.features.Image(shape=(300, 300, 3)),
                                 "image_right": tfds.features.Image(shape=(300, 300, 3)),
                                 "natural_language_instruction": tfds.features.Text(),
                                 "natural_language_embedding": tfds.features.Tensor(
-                                    shape=(512,), dtype=tf.float32
+                                    shape=(512,), dtype=np.float32
                                 ),
                             },
                             "is_terminal": tfds.features.Tensor(
-                                shape=(), dtype=tf.bool
+                                shape=(), dtype=np.bool_
                             ),
-                            "is_last": tfds.features.Tensor(shape=(), dtype=tf.bool),
-                            "is_first": tfds.features.Tensor(shape=(), dtype=tf.bool),
+                            "is_last": tfds.features.Tensor(shape=(), dtype=np.bool_),
+                            "is_first": tfds.features.Tensor(shape=(), dtype=np.bool_),
                             "action": {
                                 "base_displacement_vector": tfds.features.Tensor(
-                                    shape=(2,), dtype=tf.float32
+                                    shape=(2,), dtype=np.float32
                                 ),
                                 "base_displacement_vertical_rotation": tfds.features.Tensor(
-                                    shape=(1,), dtype=tf.float32
+                                    shape=(1,), dtype=np.float32
                                 ),
                                 "gripper_closedness_action_left": tfds.features.Tensor(
-                                    shape=(1, ), dtype=tf.float32
+                                    shape=(1, ), dtype=np.float32
                                 ),
                                 "gripper_closedness_action_right": tfds.features.Tensor(
-                                    shape=(1, ), dtype=tf.float32
+                                    shape=(1, ), dtype=np.float32
                                 ),
                                 "rotation_delta_left": tfds.features.Tensor(
-                                    shape=(3,), dtype=tf.float32
+                                    shape=(3,), dtype=np.float32
                                 ),
                                 "world_vector_left": tfds.features.Tensor(
-                                    shape=(3,), dtype=tf.float32
+                                    shape=(3,), dtype=np.float32
                                 ),
                                 "rotation_delta_right": tfds.features.Tensor(
-                                    shape=(3,), dtype=tf.float32
+                                    shape=(3,), dtype=np.float32
                                 ),
                                 "world_vector_right": tfds.features.Tensor(
-                                    shape=(3,), dtype=tf.float32
+                                    shape=(3,), dtype=np.float32
                                 ),
                                 "terminate_episode": tfds.features.Tensor(
-                                    shape=(3,), dtype=tf.float32
+                                    shape=(3,), dtype=np.float32
                                 ),
                             },
                         }

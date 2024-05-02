@@ -404,3 +404,9 @@ def set_seed(seed):
     import torch
     torch.manual_seed(seed)
     np.random.seed(seed)
+
+from pathlib import Path
+data_config_path = Path(__file__).parent.parent / 'open_x_embodiment-main' / 'data_config.json'
+import json
+with data_config_path.open() as f:
+    WORLD_VECTOR_MAX = json.load(f)['world_vector_max']

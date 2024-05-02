@@ -6,6 +6,7 @@ os.environ['MUJOCO_GL'] = 'osmesa'
 import importlib
 import warnings
 from io import StringIO
+from utils import WORLD_VECTOR_MAX
 class FailedToConvergeError(Exception):
     pass
 class InterceptStdOut:
@@ -101,7 +102,7 @@ class BimanualModelPolicy:
                 use_token_learner=True,
                 # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
                 # world_vector_range=(-0.06, 0.06),
-                world_vector_range=(-0.25, 0.25),
+                world_vector_range=(-WORLD_VECTOR_MAX, WORLD_VECTOR_MAX),
                 )   
             self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,

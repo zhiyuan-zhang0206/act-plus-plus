@@ -1,6 +1,6 @@
 import os
 os.environ['MUJOCO_GL'] = 'osmesa'
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import torch
 import numpy as np
 import pickle

@@ -292,8 +292,8 @@ class OpenLidPolicy(BasePolicy):
         else:
             logger.info(f"Using given random values.")
         # separate_xyz = meet_xyz + np.array([0.1, 0, 0.1])
-        logger.debug(f'{cup_xyz=}')
-        logger.debug(f'{lid_xyz=}')
+        # logger.debug(f'{cup_xyz=}')
+        # logger.debug(f'{lid_xyz=}')
         left_hold_quaternion = left_initial_quat * Quaternion(axis=[0, 1, 0], angle=np.deg2rad(left_hand_tilt_angle))
         self.left_trajectory = [
             {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
