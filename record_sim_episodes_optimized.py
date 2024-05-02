@@ -98,10 +98,10 @@ def main(args):
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
-                if step == render_start:
-                    env_q.task.set_render_state(True)
-                elif step == 0:
+                if step == 0:
                     env_q.task.set_render_state(False)
+                elif step == render_start:
+                    env_q.task.set_render_state(True)
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)

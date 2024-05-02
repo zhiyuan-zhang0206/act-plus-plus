@@ -295,7 +295,7 @@ def main(args):
                 # if step >= 588:
                 #     break
                 if step == RENDER_START_FRAME:
-                    env_q.task.start_render()
+                    env_q.task.set_render_state(True)
                 # if step == MODEL_POLICY_START_FRAME:
                 #     policy = model_policy
                 # action_ee = policy(ts_q)

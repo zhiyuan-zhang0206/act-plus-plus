@@ -66,7 +66,7 @@ def make_sim_env(task_name, object_info:dict=None)->control.Environment:
 class BimanualViperXTask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
-        self.render = False
+        self.render = True
         
     def set_render_state(self, render:bool):
         self.render = render
