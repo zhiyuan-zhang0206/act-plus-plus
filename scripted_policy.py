@@ -73,6 +73,17 @@ class BasePolicy:
         self.step_count += 1
         # print(f"{self.step_count=}, {action_left=}, {action_right=}")
         return np.concatenate([action_left, action_right])
+    def sanity_check_trajectories(self):
+        # Asserting the start and end time range for the left and right arm trajectories
+        left_start_times = [step['t'] for step in self.left_trajectory]
+        right_start_times = [step['t'] for step in self.right_trajectory]
+        assert left_start_times[0] == right_start_times[0], "Left and right arm trajectories must start at the same time."
+        assert left_start_times[-1] == right_start_times[-1], "Left and right arm trajectories must end at the same time."
+        logger.info(f"Trajectories for both arms start at time {left_start_times[0]} and end at time {left_start_times[-1]}")
+        for i in range(len(self.left_trajectory)-1):
+            assert self.left_trajectory[i]['t'] < self.left_trajectory[i+1]['t'], "Left trajectory timestep must be monotonically increasing."
+        for i in range(len(self.right_trajectory)-1):
+            assert self.right_trajectory[i]['t'] < self.right_trajectory[i+1]['t'], "Right trajectory timestep must be monotonically increasing."
 
 
 class PickAndTransferPolicy(BasePolicy):
@@ -194,19 +205,16 @@ class StirPolicy(BasePolicy):
             np.array([+0.02, 0, -0.1]),
         ]
         stir_deltas = [
-            np.array([-0.02, 0.01,     0.03]),
-            np.array([-0.01, -0.01,    0.03]),
-            np.array([0.01, 0.01,    0.03]),
-            np.array([-0.01, -0.01,    0.04]),
-            np.array([-0.02, 0.01,    0.04]),
-            np.array([-0.02, 0.01,    0.05]),
-            np.array([-0.01, -0.01,    0.06]),
+            np.array([-0.05, 0.0,    0.15]),
+            np.array([-0.04, -0.01,  0.15]),
+            np.array([-0.03, 0.0,    0.15]),
+            np.array([-0.04, 0.01,   0.15]),
         ]
         if random_values is None:
             meet_xyz = (cup_xyz + spoon_xyz)/2 # + np.random.uniform(-0.1, 0.1, 3)
-            meet_xyz[2] = 0.3 # + np.random.uniform(-0.1, 0.1)
-            delta_1 = np.array([np.random.uniform(-0.2, -0.05), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
-            delta_6 = np.array([np.random.uniform(0.05, 0.2), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.05)])
+            meet_xyz[2] = 0.15 # + np.random.uniform(-0.1, 0.1)
+            delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
+            delta_6 = np.array([np.random.uniform(0.05, 0.1), np.random.uniform(-0.05, 0.05), np.random.uniform(0.1, 0.15)])
             random_values = {
                 "meet_xyz": meet_xyz,
                 "delta_1": delta_1,
@@ -215,25 +223,22 @@ class StirPolicy(BasePolicy):
                 "delta_4": random.choice(hold_deltas),
                 "delta_5": random.choice(hold_deltas),
                 "delta_6": delta_6,
-                "delta_7":random.choice(stir_deltas),
-                "delta_8":random.choice(stir_deltas),
-                "delta_9":random.choice(stir_deltas),
-                "delta_10":random.choice(stir_deltas),
+                # "delta_7":random.choice(stir_deltas),
+                # "delta_8":random.choice(stir_deltas),
+                # "delta_9":random.choice(stir_deltas),
+                # "delta_10":random.choice(stir_deltas),
             }
         else:
             logger.info(f"Using given random values.")
         
         self.left_trajectory = [
             {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 50,  "xyz": cup_xyz + np.array([-0.01, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 100,  "xyz": cup_xyz + np.array([-0.01, 0.0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 150,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            # {"t": 200,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 250,  "xyz": random_values['meet_xyz'] +  random_values['delta_1'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 300,  "xyz": random_values['meet_xyz'] +  random_values['delta_2'] ,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 330,  "xyz": random_values['meet_xyz'] +  random_values['delta_3'] ,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 360,  "xyz": random_values['meet_xyz'] +  random_values['delta_4'] ,      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 400,  "xyz": random_values['meet_xyz'] +  random_values['delta_5'] ,    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 30,  "xyz": cup_xyz + np.array([-0.01, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 60,  "xyz": cup_xyz + np.array([-0.01, 0.0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 90,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            # {"t": 200,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 200,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
         ]
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
@@ -242,19 +247,26 @@ class StirPolicy(BasePolicy):
 
         self.right_trajectory = [
             {"t": 0,   "xyz": right_initial_loc,                            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
-            {"t": 50, "xyz": spoon_xyz + np.array([ -0.08, 0.0, -0.032]),    "quat": right_down.elements,   "gripper": 1}, # sleep
-            {"t": 100, "xyz": spoon_xyz + np.array([-0.08, 0.0, -0.032]),    "quat": right_down.elements,   "gripper": 0}, # sleep
-            {"t": 150, "xyz": spoon_xyz + np.array([-0.08, 0.0, 0.2]),      "quat": right_down.elements,   "gripper": 0}, # sleep
-            {"t": 200, "xyz": spoon_xyz + np.array([-0.08, 0.0, 0.2]),      "quat": right_stir.elements,   "gripper": 0}, # sleep
-            {"t": 250, "xyz": random_values['meet_xyz'] + random_values['delta_6'],                           "quat": right_stir.elements,   "gripper":0}, # sleep
-            {"t": 300, "xyz": random_values['meet_xyz'] + np.array([-0.01, 0, 0.13]),          "quat": right_stir.elements,   "gripper":0}, # sleep
-            {"t": 350, "xyz": random_values['meet_xyz'] + random_values['delta_7'],          "quat": right_stir.elements,   "gripper":0}, # sleep
-            {"t": 370, "xyz": random_values['meet_xyz'] + random_values['delta_8'],          "quat": right_stir.elements,   "gripper":0}, # sleep
-            {"t": 390, "xyz": random_values['meet_xyz'] + random_values['delta_9'],          "quat": right_stir.elements,   "gripper":0}, # sleep
-            {"t": 400, "xyz": random_values['meet_xyz'] + random_values['delta_10'],          "quat": right_stir.elements,   "gripper":0}, # sleep
+            # {"t": 400,   "xyz": right_initial_loc,                            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
+            {"t": 40, "xyz": spoon_xyz + np.array([ -0.06, 0.0, -0.032]),    "quat": right_down.elements,   "gripper": 1}, # sleep
+            {"t": 80, "xyz": spoon_xyz + np.array([-0.06, 0.0, -0.032]),    "quat": right_down.elements,   "gripper": 0}, # sleep
+            {"t": 120, "xyz": spoon_xyz + np.array([-0.06, 0.0, 0.2]),      "quat": right_down.elements,   "gripper": 0}, # sleep
+            {"t": 160, "xyz": spoon_xyz + np.array([-0.06, 0.0, 0.3]),      "quat": right_stir.elements,   "gripper": 0}, # sleep
+            {"t": 200, "xyz": random_values['meet_xyz'] + random_values['delta_6'],                           "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 230, "xyz": random_values['meet_xyz'] + np.array([ 0.02, 0, 0.21]),          "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 260, "xyz": random_values['meet_xyz'] + np.array([-0.02, 0, 0.23]),          "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 290, "xyz": random_values['meet_xyz'] + stir_deltas[0],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 310, "xyz": random_values['meet_xyz'] + stir_deltas[1],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 330, "xyz": random_values['meet_xyz'] + stir_deltas[2],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 350, "xyz": random_values['meet_xyz'] + stir_deltas[3],        "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 370, "xyz": random_values['meet_xyz'] + stir_deltas[0],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 390, "xyz": random_values['meet_xyz'] + stir_deltas[1],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 400, "xyz": random_values['meet_xyz'] + stir_deltas[2],       "quat": right_stir.elements,   "gripper":0}, # sleep
+            # {"t": 430, "xyz": random_values['meet_xyz'] + stir_deltas[3],        "quat": right_stir.elements,   "gripper":0}, # sleep
             # {"t": 400, "xyz": meet_xyz + np.array([-0.01, 0, 0.13]),          "quat": right_stir.elements,   "gripper":0}, # sleep
         ]
         self.random_values = random_values
+        self.sanity_check_trajectories()
 
 class OpenLidPolicy(BasePolicy):
     language_instruction :str = 'open the lid of the cup' # 'use spoon to stir coffee'
@@ -324,12 +336,8 @@ class OpenLidPolicy(BasePolicy):
             {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.02, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
         ]
         self.random_values = random_values
-        # Asserting the start and end time range for the left and right arm trajectories
-        left_start_times = [step['t'] for step in self.left_trajectory]
-        right_start_times = [step['t'] for step in self.right_trajectory]
-        assert left_start_times[0] == right_start_times[0], "Left and right arm trajectories must start at the same time."
-        assert left_start_times[-1] == right_start_times[-1], "Left and right arm trajectories must end at the same time."
-        logger.info(f"Trajectories for both arms start at time {left_start_times[0]} and end at time {left_start_times[-1]}")
+        self.sanity_check_trajectories()
+
 
 def test_policy(task_name):
     # example rolling out pick_and_transfer policy
