@@ -1,8 +1,11 @@
 import time
 import os
-# os.environ['MUJOCO_GL'] = 'egl'
-from typing import Literal
 os.environ['MUJOCO_GL'] = 'osmesa'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+# os.environ['MUJOCO_GL'] = 'egl'
+
+
+from typing import Literal
 import importlib
 import warnings
 from io import StringIO
@@ -75,7 +78,7 @@ class BimanualModelPolicy:
         import sys
         sys.path.append('/home/users/ghc/zzy')
         rtx = importlib.import_module('open_x_embodiment-main' )
-        self.batch_size = 14
+        self.batch_size = 19
         dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False, version = version)
         data = next(iter(dataset))
         self.action_storage = data['action']
@@ -126,21 +129,36 @@ class BimanualModelPolicy:
         # self.language_instruction_embedding = embed([language_instruction])[0]
         # del embed
         
+    # def _add_merge_image(self, image_left, image_right):
+    #     self.images_left.append(image_left)
+    #     self.images_right.append(image_right)
+    #     if len(self.images_left) > 15:
+    #         self.images_left.pop(0)
+    #         self.images_right.pop(0)
+    #     assert len(self.images_left) == len(self.images_right)
+    #     left_input = np.stack(self.images_left, axis=0)
+    #     left_input_padded = np.zeros((15, 300, 300, 3))
+    #     left_input_padded[-left_input.shape[0]:] = left_input
+    #     right_input = np.stack(self.images_right, axis=0)
+    #     right_input_padded = np.zeros((15, 300, 300, 3))
+    #     right_input_padded[-right_input.shape[0]:] = right_input
+    #     return left_input_padded, right_input_padded
     def _add_merge_image(self, image_left, image_right):
         self.images_left.append(image_left)
         self.images_right.append(image_right)
+        assert len(self.images_left) == len(self.images_right)
         if len(self.images_left) > 15:
             self.images_left.pop(0)
             self.images_right.pop(0)
-        assert len(self.images_left) == len(self.images_right)
-        left_input = np.stack(self.images_left, axis=0)
-        left_input_padded = np.zeros((15, 300, 300, 3))
-        left_input_padded[-left_input.shape[0]:] = left_input
-        right_input = np.stack(self.images_right, axis=0)
-        right_input_padded = np.zeros((15, 300, 300, 3))
-        right_input_padded[-right_input.shape[0]:] = right_input
+            left_input_padded = np.stack(self.images_left, axis=0)
+            right_input_padded = np.stack(self.images_right, axis=0)
+        else:
+            left_input_padded = np.zeros((15, 300, 300, 3))
+            left_input_padded[-len(self.images_left):] = np.stack(self.images_left, axis=0)
+            right_input_padded = np.zeros((15, 300, 300, 3))
+            right_input_padded[-len(self.images_right):] = np.stack(self.images_right, axis=0)
         return left_input_padded, right_input_padded
-        
+    
     def _calculate_new_pose(self, pose, delta, mode:Literal['left', 'right'], left_pose=None):
         if self.right_hand_relative and mode == 'right':
             assert left_pose is not None
@@ -253,7 +271,7 @@ def main(args):
     task_name = args['task_name']
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
-    always_refresh = args['always_refresh']
+    # always_refresh = args['always_refresh']
     model_ckpt_path = args['model_ckpt_path']
     frame_interval = args['frame_interval']
     # dropout_train = args['dropout_train']
@@ -262,7 +280,7 @@ def main(args):
     rerun_when_error = args['rerun_when_error']
     seed = args['seed']
     random.seed(seed)
-    MODEL_POLICY_START_FRAME = 260
+    MODEL_POLICY_START_FRAME = 200
     # MODEL_POLICY_START_FRAME -= 1
     RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 10
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
@@ -324,7 +342,7 @@ def main(args):
                 # if step >= MODEL_POLICY_START_FRAME:
                 # if step == 259:
                 #     return
-                if step >= 258:
+                if step >= MODEL_POLICY_START_FRAME - 2:
                 #     print(action_1:= model_policy(ts_q))
                 #     print(action_2:= script_policy(ts_q))
                     action_1 = model_policy(ts_q)
