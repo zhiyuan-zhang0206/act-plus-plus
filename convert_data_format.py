@@ -38,7 +38,7 @@ def wxyz_to_xyzw(quat):
     else:
         return np.array([quat[1], quat[2], quat[3], quat[0]])
 
-def process_data(path, save_dir, debug=False):
+def process_data(path, save_dir, debug=False, right_hand_relative = False):
     save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
@@ -52,9 +52,9 @@ def process_data(path, save_dir, debug=False):
         right_pose[:, 3:] = wxyz_to_xyzw(right_pose[:, 3:])
         left_pose = left_pose[START_FRAME::TIME_INTERVAL]
         right_pose = right_pose[START_FRAME::TIME_INTERVAL]
-        left_image = left_image[START_FRAME::TIME_INTERVAL]
-        right_image = right_image[START_FRAME::TIME_INTERVAL]
         action = action[START_FRAME::TIME_INTERVAL][1:]
+        left_image = left_image[START_FRAME::TIME_INTERVAL][:-1]
+        right_image = right_image[START_FRAME::TIME_INTERVAL][:-1]
 
         random_values = {}
         for key, dataset in root['random_values'].items():
@@ -92,8 +92,8 @@ def process_data(path, save_dir, debug=False):
     # right_location_relative_diff = np.diff(right_location_relative, axis=0)
     # right_rpy_relative_diff = R.from_euler('zyx', right_rpy_relative[1:]) * R.from_euler('zyx', right_rpy_relative[:-1]).inv()
     
-    right_vector_diff = right_vector_diff if not RIGHT_HAND_RELATIVE else right_location_relative
-    rotation_delta_right = right_rpy_diff if not RIGHT_HAND_RELATIVE else right_rpy_relative
+    right_vector_diff = right_vector_diff if not right_hand_relative else right_location_relative
+    rotation_delta_right = right_rpy_diff if not right_hand_relative else right_rpy_relative
     update_max_min(left_vector_diff, right_vector_diff, left_rpy_diff, rotation_delta_right)
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
@@ -140,7 +140,22 @@ def test():
     print(right_vector_diff[0])
     # print(random_values)
 
+from argparse import ArgumentParser
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() == 'true':
+        return True
+    if v.lower() == 'false':
+        return False
+    raise ValueError('Boolean value expected.')
+
 def main():
+    parser = ArgumentParser()
+    parser.add_argument('--right_hand_relative', type=str2bool, required=True)
+    args = parser.parse_args()
+
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
     save_dir = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
@@ -150,7 +165,7 @@ def main():
         paths = paths[1:3]
     # process_data(paths[0], save_dir, debug=True)
     for i, p in tqdm(list(enumerate(paths))):
-        process_data(p, save_dir, debug= i==0)
+        process_data(p, save_dir, debug= i==0, right_hand_relative=args.right_hand_relative)
     print(f"data ranges: {LOCATION_MIN=}, {LOCATION_MAX=}, {ROTATION_MIN=}, {ROTATION_MAX=}")
     # return
     # select 10% and put into 'test', else 'train'
@@ -180,3 +195,4 @@ if __name__ == '__main__':
     main()
     # test()
 
+# python convert_data_format.py --right_hand_relative False
