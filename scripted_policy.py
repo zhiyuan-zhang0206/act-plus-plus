@@ -217,7 +217,7 @@ class StirPolicy(BasePolicy):
             meet_xyz = (cup_xyz + spoon_xyz)/2 # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.15 # + np.random.uniform(-0.1, 0.1)
             delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
-            delta_6 = np.array([np.random.uniform(0.1, 0.15), np.random.uniform(-0.03, 0.03), np.random.uniform(0.15, 0.20)])
+            delta_6 = np.array([np.random.uniform(0.05, 0.1), np.random.uniform(-0.03, 0.03), np.random.uniform(0.15, 0.20)])
             random_values = {
                 "meet_xyz": meet_xyz,
                 "delta_1": delta_1,

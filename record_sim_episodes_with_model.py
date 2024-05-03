@@ -1,6 +1,7 @@
 import time
 import os
 os.environ['MUJOCO_GL'] = 'osmesa'
+os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 # os.environ['MUJOCO_GL'] = 'egl'
 
@@ -246,8 +247,12 @@ class BimanualModelPolicy:
     def reset(self, ):
         self.images_left = []
         self.images_right = []
+        # self.action_buffer = []
+        self.left_pose = None
+        self.right_pose = None
         self.step = 0
-        
+        self.observed_pose = []
+        self.desired_pose = []
         self.dataset_action = {'gripper_left':self.action_storage['gripper_closedness_action_left'][self.batch_size-1].numpy().tolist()[1:],
                                 'gripper_right':self.action_storage['gripper_closedness_action_right'][self.batch_size-1].numpy().tolist()[1:],
                                 'pose_left':np.concatenate([self.action_storage['world_vector_left'].numpy(), self.action_storage['rotation_delta_left'].numpy()], axis=-1)[self.batch_size-1].tolist()[1:],
@@ -397,7 +402,7 @@ def main(args):
                 continue
             else:
                 break
-        model_policy.print_observation_desired_history()
+        # model_policy.print_observation_desired_history()
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
         data_dict = {

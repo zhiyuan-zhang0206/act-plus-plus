@@ -78,6 +78,7 @@ def main(args):
 
     dataset_path = Path(os.path.join(dataset_dir, task_name))
     episode_idx = 0
+    final_rewards = []
     while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
@@ -128,7 +129,9 @@ def main(args):
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
         episode_return = np.sum([ts.reward for ts in episode_q[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
-        logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}')
+        final_reward = episode_q[-1].reward
+        final_rewards.append(final_reward)
+        logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}, final reward: {final_reward}')
 
         """
         For each timestep:
@@ -219,7 +222,7 @@ def main(args):
                 root.create_dataset(f'random_values/{key}', data=value)
             root.create_dataset('objects_start_pose', data=objects_start_pose)
         episode_idx += 1
-
+    logger.info(f'Max final rewards: {np.max(final_rewards)}, mean final rewards: {np.mean(final_rewards)}, min final rewards: {np.min(final_rewards)}')
     logger.info(f'Saved to {dataset_dir}')
     # logger.info(f'Success: {np.sum(success)} / {len(success)}')
 
