@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import h5py
 from pyquaternion import Quaternion
-START_FRAME = 260
+START_FRAME = 200
 START_FRAME -= 1
 TIME_INTERVAL = 10
 RIGHT_HAND_RELATIVE = True
@@ -50,11 +50,11 @@ def process_data(path, save_dir, debug=False):
         
         left_pose[:, 3:] = wxyz_to_xyzw(left_pose[:, 3:])
         right_pose[:, 3:] = wxyz_to_xyzw(right_pose[:, 3:])
-        left_pose = left_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
-        right_pose = right_pose[START_FRAME-TIME_INTERVAL::TIME_INTERVAL]
+        left_pose = left_pose[START_FRAME::TIME_INTERVAL]
+        right_pose = right_pose[START_FRAME::TIME_INTERVAL]
         left_image = left_image[START_FRAME::TIME_INTERVAL]
         right_image = right_image[START_FRAME::TIME_INTERVAL]
-        action = action[START_FRAME::TIME_INTERVAL]
+        action = action[START_FRAME::TIME_INTERVAL][1:]
 
         random_values = {}
         for key, dataset in root['random_values'].items():

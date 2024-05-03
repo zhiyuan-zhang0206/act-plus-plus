@@ -85,6 +85,9 @@ class BasePolicy:
         for i in range(len(self.right_trajectory)-1):
             assert self.right_trajectory[i]['t'] < self.right_trajectory[i+1]['t'], "Right trajectory timestep must be monotonically increasing."
 
+    def log_random_values(self):
+        for k, v in self.random_values.items():
+            logger.info(f'Random value for {k}: {v}')
 
 class PickAndTransferPolicy(BasePolicy):
 
@@ -214,7 +217,7 @@ class StirPolicy(BasePolicy):
             meet_xyz = (cup_xyz + spoon_xyz)/2 # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.15 # + np.random.uniform(-0.1, 0.1)
             delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
-            delta_6 = np.array([np.random.uniform(0.05, 0.1), np.random.uniform(-0.05, 0.05), np.random.uniform(0.1, 0.15)])
+            delta_6 = np.array([np.random.uniform(0.05, 0.08), np.random.uniform(-0.03, 0.03), np.random.uniform(0.1, 0.15)])
             random_values = {
                 "meet_xyz": meet_xyz,
                 "delta_1": delta_1,
@@ -267,6 +270,7 @@ class StirPolicy(BasePolicy):
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()
+        self.log_random_values()
 
 class OpenLidPolicy(BasePolicy):
     language_instruction :str = 'open the lid of the cup' # 'use spoon to stir coffee'
@@ -337,7 +341,7 @@ class OpenLidPolicy(BasePolicy):
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()
-
+        self.log_random_values()
 
 def test_policy(task_name):
     # example rolling out pick_and_transfer policy

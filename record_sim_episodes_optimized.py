@@ -24,6 +24,13 @@ def assemble_image_for_oncreen_render(ts):
     image_right = ts.observation['images']['right_angle']
     image = np.concatenate([image_left, image_right], axis=1)
     return image
+def configure_logging():
+    # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
+    log_dir = Path(__file__).parent / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = log_dir / f'{timestamp}.log'
+    logger.add(log_file.as_posix())
 
 task_name_to_script_policy_cls = {
     'stir': StirPolicy,
@@ -47,6 +54,7 @@ def main(args):
     Replay this joint trajectory (as action sequence) in sim_env, and record all observations.
     Save this episode of data, and continue to next episode of data collection.
     """
+    configure_logging()
     start_index = args['start_index']
     logger.info(f'Start index: {start_index}')
     task_name = args['task_name']
@@ -164,6 +172,25 @@ def main(args):
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts_q.observation['images'][cam_name])
+
+        # examine data
+        left_diffs = []
+        right_diffs = []
+        for i in range(len(data_dict['/observations/left_pose'][render_start::render_interval][:-1])):
+            location_left = data_dict['/observations/left_pose'][render_start::render_interval][i]
+            location_left_next = data_dict['/observations/left_pose'][render_start::render_interval][i+1]
+            location_right = data_dict['/observations/right_pose'][render_start::render_interval][i]
+            location_right_next = data_dict['/observations/right_pose'][render_start::render_interval][i+1]
+            location_left_diff = location_left_next - location_left
+            location_right_diff = location_right_next - location_right
+            left_diffs.append(location_left_diff)
+            right_diffs.append(location_right_diff)
+        left_diff_max = np.max(np.abs(np.array(left_diffs)))
+        right_diff_max = np.max(np.abs(np.array(right_diffs)))
+        logger.info(f'Left diff max: {left_diff_max}')
+        logger.info(f'Right diff max: {right_diff_max}')
+        if left_diff_max > 0.1 or right_diff_max > 0.1:
+            logger.critical('Large diff in location!')
 
         # HDF5
         data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
