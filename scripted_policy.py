@@ -296,9 +296,9 @@ class OpenLidPolicy(BasePolicy):
         if random_values is None:
             meet_xyz = cup_xyz.copy() # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
-            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.05, 0.0), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
-            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.0, 0.05), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, +0.05)])
-            left_hand_tilt_angle = np.random.uniform(0, 20)
+            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.05, 0.0), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, -0.02)])
+            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.0, 0.05), np.random.uniform(-0.05, +0.05), np.random.uniform(0.03, +0.05)])
+            # left_hand_tilt_angle = np.random.uniform(0, 10)
             left_hand_tilt_angle = 15
             random_values = {
                 "meet_xyz": meet_xyz,
@@ -318,7 +318,7 @@ class OpenLidPolicy(BasePolicy):
             {"t": 25,  "xyz": cup_xyz + np.array(  [0.0, 0.0, 0.06]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 40,  "xyz": cup_xyz + np.array(  [0.06, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 55,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 260,  "xyz": random_values['pre_meet_left'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
             {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
             {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
             {"t": 360,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
@@ -333,11 +333,11 @@ class OpenLidPolicy(BasePolicy):
             # {"t": 400,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
             {"t": 20, "xyz":  right_initial_loc,            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
             {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 250, "xyz":  random_values['pre_meet_right'],            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
             {"t": 300, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 380, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.16]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.02, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 380, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.02, 0.14]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()
