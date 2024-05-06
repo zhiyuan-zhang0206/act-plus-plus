@@ -1,8 +1,11 @@
 import time
 import os
-os.environ['MUJOCO_GL'] = 'osmesa'
-os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+if __name__ == '__main__':
+    # warnings.filterwarnings("error", message=(r"Failed to converge after.*"))
+    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+    os.environ['MUJOCO_GL'] = 'osmesa'
+    os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 # os.environ['MUJOCO_GL'] = 'egl'
 
 
@@ -10,7 +13,18 @@ from typing import Literal
 import importlib
 import warnings
 from io import StringIO
-from utils import WORLD_VECTOR_MAX, ROTATION_MAX
+from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() == 'true':
+        return True
+    if v.lower() == 'false':
+        return False
+    raise ValueError('Boolean value expected.')
+
 class FailedToConvergeError(Exception):
     pass
 class InterceptStdOut:
@@ -31,8 +45,6 @@ class InterceptStdOut:
 # warnings.filterwarnings("error", message=
 # re.compile(r"Failed to converge after \d+ steps with norm \d+\.\d+"))
 # import re
-# warnings.filterwarnings("error", message=(r"Failed to converge after.*"))
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 # os.environ['PYOPENGL_PLATFORM'] = 'egl'
 # os.environ['DISPLAY'] = 'egl'
 # =:0
@@ -59,10 +71,12 @@ class BimanualModelPolicy:
                  always_refresh:bool=False,
                  dropout_train:bool=False,
                  right_hand_relative:bool=False,
-                 version:str='0.1.4'
+                 version:str='0.1.4',
+                 absolute:bool=False
                 ):
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
+        self.absolute = absolute
         if ckpt_path is None:
             dataset_debug = True
         else:
@@ -106,8 +120,8 @@ class BimanualModelPolicy:
                 use_token_learner=True,
                 # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
                 # world_vector_range=(-0.06, 0.06),
-                world_vector_range=(-WORLD_VECTOR_MAX, WORLD_VECTOR_MAX),
-                rotation_range=(-ROTATION_MAX, ROTATION_MAX)
+                world_vector_range=(WORLD_VECTOR_MIN, WORLD_VECTOR_MAX),
+                rotation_range=(ROTATION_MIN, ROTATION_MAX)
                 )   
             self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
@@ -160,22 +174,29 @@ class BimanualModelPolicy:
             right_input_padded[-len(self.images_right):] = np.stack(self.images_right, axis=0)
         return left_input_padded, right_input_padded
     
-    def _calculate_new_pose(self, pose, delta, mode:Literal['left', 'right'], left_pose=None):
-        if self.right_hand_relative and mode == 'right':
-            assert left_pose is not None
-            right_location = left_pose[:3] + delta[:3]
-            right_quaternion = R.from_quat(pose[[4,5,6,3]]) * R.from_quat(left_pose[[4,5,6,3]]).inv()
-            right_quaternion = right_quaternion[[3,0,1,2]]
-            new_pose = np.concatenate([right_location, right_quaternion])
-        else:
-            new_location = pose[:3] + delta[:3]
-            rpy_delta = R.from_euler('zyx', delta[3:6])
-            current_rpy = R.from_quat(pose[[4,5,6,3]])
-            new_quaternion = (rpy_delta * current_rpy).as_quat()
+    def _calculate_new_pose(self, pose, action, mode:Literal['left', 'right'] = None, left_pose=None):
+        if self.absolute:
+            new_location = action[:3]
+            new_rpy = action[3:6]
+            new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
             new_quaternion = new_quaternion[[3,0,1,2]]
-            # new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
             new_pose = np.concatenate([new_location, new_quaternion])
             return new_pose
+        else:
+            if self.right_hand_relative and mode == 'right':
+                assert left_pose is not None
+                right_location = left_pose[:3] + action[:3]
+                right_quaternion = R.from_quat(pose[[4,5,6,3]]) * R.from_quat(left_pose[[4,5,6,3]]).inv()
+                right_quaternion = right_quaternion[[3,0,1,2]]
+                new_pose = np.concatenate([right_location, right_quaternion])
+            else:
+                new_location = pose[:3] + action[:3]
+                rpy_delta = R.from_euler('zyx', action[3:6])
+                current_rpy = R.from_quat(pose[[4,5,6,3]])
+                new_quaternion = (rpy_delta * current_rpy).as_quat()
+                new_quaternion = new_quaternion[[3,0,1,2]]
+                new_pose = np.concatenate([new_location, new_quaternion])
+                return new_pose
     
     def generate_action_buffer(self, current_pose, new_pose):
         diff = new_pose - current_pose
@@ -284,6 +305,7 @@ def main(args):
     version = args['version']
     rerun_when_error = args['rerun_when_error']
     seed = args['seed']
+    absolute = args['absolute']
     random.seed(seed)
     MODEL_POLICY_START_FRAME = 200
     # MODEL_POLICY_START_FRAME -= 1
@@ -301,7 +323,8 @@ def main(args):
     # model_ckpt_path = None
     # model_ckpt_path = '/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-04-23_15-06-01/checkpoint_300'
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
-                                       dropout_train=True, right_hand_relative=right_hand_relative, version=version)
+                                       dropout_train=True, right_hand_relative=right_hand_relative, version=version,
+                                       absolute=absolute)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
@@ -474,5 +497,6 @@ if __name__ == '__main__':
     parser.add_argument('--version', action='store', type=str, default='0.1.4')
     parser.add_argument('--rerun_when_error', action='store_true', default=False)
     parser.add_argument('--seed', action='store', type=int, default=0)
+    parser.add_argument('--absolute', type= str2bool, required=True)
     main(vars(parser.parse_args()))
 

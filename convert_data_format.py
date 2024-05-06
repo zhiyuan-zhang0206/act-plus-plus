@@ -38,7 +38,7 @@ def wxyz_to_xyzw(quat):
     else:
         return np.array([quat[1], quat[2], quat[3], quat[0]])
 
-def process_data(path, save_dir, debug=False, right_hand_relative = False):
+def process_data(path, save_dir, debug=False, absolute = False, right_hand_relative = False):
     save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
@@ -69,6 +69,11 @@ def process_data(path, save_dir, debug=False, right_hand_relative = False):
     right_quaternion = right_pose[:, 3:] / np.linalg.norm(right_pose[:, 3:], axis=1, keepdims=True)
     right_quaternion_diffs = R.from_quat(right_quaternion[1:]) * R.from_quat(right_quaternion[:-1]).inv()
     right_rpy_diff = right_quaternion_diffs.as_euler('zyx')
+
+    left_location = left_pose[1:, :3]
+    right_location = right_pose[1:, :3]
+    left_rpy = R.from_quat(left_quaternion).as_euler('zyx')[1:]
+    right_rpy = R.from_quat(right_quaternion).as_euler('zyx')[1:]
     
     # right hand as relative
     right_location_relative = (right_pose[:, :3] - left_pose[:, :3])[1:]
@@ -94,15 +99,21 @@ def process_data(path, save_dir, debug=False, right_hand_relative = False):
     
     right_vector_diff = right_vector_diff if not right_hand_relative else right_location_relative
     rotation_delta_right = right_rpy_diff if not right_hand_relative else right_rpy_relative
-    update_max_min(left_vector_diff, right_vector_diff, left_rpy_diff, rotation_delta_right)
+    
+    world_vector_left = left_location if absolute else left_vector_diff
+    world_vector_right = right_location if absolute else right_vector_diff
+    rotation_delta_left = left_rpy if absolute else left_rpy_diff
+    rotation_delta_right = right_rpy if absolute else rotation_delta_right
+    update_max_min(world_vector_left, world_vector_right, rotation_delta_left, rotation_delta_right)
+    
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
     
     save_path = save_dir / path.stem
     data = {
-        'world_vector_left': left_vector_diff,
-        'rotation_delta_left': left_rpy_diff, #left_aa_diff,
-        'world_vector_right': right_vector_diff,
+        'world_vector_left': world_vector_left,
+        'rotation_delta_left': rotation_delta_left, #left_aa_diff,
+        'world_vector_right': world_vector_right,
         'rotation_delta_right': rotation_delta_right,
         # 'world_vector_right_relative': right_location_relative,
         # 'rotation_delta_right_relative': right_rpy_relative.as_euler('zyx'),
@@ -151,9 +162,12 @@ def str2bool(v):
         return False
     raise ValueError('Boolean value expected.')
 
+# python convert_data_format.py --right_hand_relative False --absolute True
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('--right_hand_relative', type=str2bool, required=True)
+    parser.add_argument('--absolute', type=str2bool, required=True)
     args = parser.parse_args()
 
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
@@ -165,7 +179,7 @@ def main():
         paths = paths[1:3]
     # process_data(paths[0], save_dir, debug=True)
     for i, p in tqdm(list(enumerate(paths))):
-        process_data(p, save_dir, debug= i==0, right_hand_relative=args.right_hand_relative)
+        process_data(p, save_dir, debug= i==0, absolute=args.absolute, right_hand_relative=args.right_hand_relative)
     print(f"data ranges: {LOCATION_MIN=}, {LOCATION_MAX=}, {ROTATION_MIN=}, {ROTATION_MAX=}")
     # return
     # select 10% and put into 'test', else 'train'

@@ -411,4 +411,6 @@ import json
 with data_config_path.open() as f:
     data_config = json.load(f)
     WORLD_VECTOR_MAX = data_config['world_vector_max']
+    WORLD_VECTOR_MIN = data_config['world_vector_min']
     ROTATION_MAX = data_config['rotation_max']
+    ROTATION_MIN = data_config['rotation_min']

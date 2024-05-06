@@ -1,7 +1,8 @@
 import time
 import os
 # os.environ['MUJOCO_GL'] = 'egl'
-os.environ['MUJOCO_GL'] = 'osmesa'
+if __name__ == '__main__':
+    os.environ['MUJOCO_GL'] = 'osmesa'
 # os.environ['PYOPENGL_PLATFORM'] = 'egl'
 # os.environ['DISPLAY'] = 'egl'
 # =:0

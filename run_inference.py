@@ -1,10 +1,11 @@
 import time
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-# os.environ['MUJOCO_GL'] = 'egl'
-os.environ['MUJOCO_GL'] = 'osmesa'
-# os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-# os.environ['DISPLAY'] = 'egl'
+if __name__ == '__main__':
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    # os.environ['MUJOCO_GL'] = 'egl'
+    os.environ['MUJOCO_GL'] = 'osmesa'
+    # os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
+    # os.environ['DISPLAY'] = 'egl'
 # =:0
 import numpy as np
 import argparse
