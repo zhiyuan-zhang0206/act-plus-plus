@@ -3,7 +3,7 @@ import os
 # os.environ['MUJOCO_GL'] = 'egl'
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
-# os.environ['PYOPENGL_PLATFORM'] = 'egl'
+    os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 # os.environ['DISPLAY'] = 'egl'
 # =:0
 import numpy as np
@@ -109,9 +109,10 @@ def main(args):
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
-                if step == 0:
+                step += 1
+                if step == 1:
                     env_q.task.set_render_state(False)
-                elif step == render_start:
+                if step == render_start:
                     env_q.task.set_render_state(True)
                 
                 if step % render_interval == 0 and step >= render_start:
@@ -138,7 +139,7 @@ def main(args):
         For each timestep:
         observations
         - images
-            - each_cam_name     (480, 640, 3) 'uint8'
+            - each_cam_name     (300, 300, 3) 'uint8'
         - qpos                  (14,)         'float64'
         - qvel                  (14,)         'float64'
 
@@ -158,7 +159,7 @@ def main(args):
         # because the replaying, there will be eps_len + 1 actions and eps_len + 2 timesteps
         # truncate here to be consistent
         joint_trajectory = joint_trajectory[:-1]
-        # episode = episode[:-1]
+        episode_q = episode_q[1:]
 
         # len(joint_traj) i.e. actions: max_timesteps
         # len(episode_replay) i.e. time steps: max_timesteps + 1

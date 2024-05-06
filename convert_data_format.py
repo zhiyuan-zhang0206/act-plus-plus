@@ -169,9 +169,8 @@ def main():
     parser.add_argument('--right_hand_relative', type=str2bool, required=True)
     parser.add_argument('--absolute', type=str2bool, required=True)
     args = parser.parse_args()
-
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
-    save_dir = hdf5_directory.parent / 'processed_data'
+    save_dir:Path = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
     paths = sorted(list(hdf5_directory.glob('*.hdf5')))
     test = False
@@ -192,21 +191,22 @@ def main():
             p.rename(test_path / p.name)
         else:
             p.rename(train_path / p.name)
-
     # all move to tf datasets
     ds_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/data')
     ds_dir.mkdir(exist_ok=True, parents=True)
     for p in train_path.glob('*.npy'):
-        
         (ds_dir/'train').mkdir(exist_ok=True, parents=True)
         p.rename(ds_dir / 'train' / p.name)
     for p in test_path.glob('*.npy'):
-        
         (ds_dir/'test').mkdir(exist_ok=True, parents=True)
         p.rename(ds_dir / 'test' / p.name)
-
+    # clear save path directories
+    for p in save_dir.rglob('*'):
+        if p.is_dir():
+            p.rmdir()
+    save_dir.rmdir()
 if __name__ == '__main__':
     main()
     # test()
 
-# python convert_data_format.py --right_hand_relative False
+# python convert_data_format.py --right_hand_relative False --absolute True

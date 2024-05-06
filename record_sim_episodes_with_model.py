@@ -27,21 +27,7 @@ def str2bool(v):
 
 class FailedToConvergeError(Exception):
     pass
-class InterceptStdOut:
-    def __init__(self, target):
-        self.target = target
-        self.buffer = StringIO()  # Using StringIO for more efficient string operations
 
-    def write(self, message):
-        self.buffer.write(message)  # Write to the buffer
-        if "Failed to converge after" in message:
-            print("Warning detected: ", message)
-            raise FailedToConvergeError(message)
-        self.target.write(message)
-
-    def flush(self):
-        self.buffer.flush()
-        self.target.flush()
 # warnings.filterwarnings("error", message=
 # re.compile(r"Failed to converge after \d+ steps with norm \d+\.\d+"))
 # import re
@@ -68,8 +54,8 @@ class BimanualModelPolicy:
                  ckpt_path=None,
                  frame_interval:int=10,
                  dataset_debug:bool=True,
-                 always_refresh:bool=False,
-                 dropout_train:bool=False,
+                 always_refresh:bool=True,
+                 dropout_train:bool=True,
                  right_hand_relative:bool=False,
                  version:str='0.1.4',
                  absolute:bool=False
@@ -92,6 +78,7 @@ class BimanualModelPolicy:
         # return
         import sys
         sys.path.append('/home/users/ghc/zzy')
+        sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main')
         rtx = importlib.import_module('open_x_embodiment-main' )
         self.batch_size = 19
         dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False, version = version)
@@ -123,7 +110,7 @@ class BimanualModelPolicy:
                 world_vector_range=(WORLD_VECTOR_MIN, WORLD_VECTOR_MAX),
                 rotation_range=(ROTATION_MIN, ROTATION_MAX)
                 )   
-            self.policy = rtx.models.rt1_bimanual_inference_example.RT1BimanualPolicy(
+            self.policy = rtx.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
                 model=model,
                 seqlen=15,
@@ -138,12 +125,15 @@ class BimanualModelPolicy:
         
         # import tensorflow_hub as hub
         # embed = hub.load("/home/users/ghc/zzy/USE/ckpt_large_v5")
+        logger.info(f"language_instruction: {language_instruction}")
         self.language_instruction = language_instruction
         language_instruction_embedding = self.instruction_to_embedding[language_instruction]
         self.language_instruction_embedding = np.repeat(language_instruction_embedding[np.newaxis], 15, axis=0)
         # self.language_instruction_embedding = embed([language_instruction])[0]
         # del embed
-        
+    
+    def dump_observation_buffer(self, path:Path):
+        self.policy.dump_observation_buffer(path)
     # def _add_merge_image(self, image_left, image_right):
     #     self.images_left.append(image_left)
     #     self.images_right.append(image_right)
@@ -255,14 +245,18 @@ class BimanualModelPolicy:
         self.desired_pose.append(action.copy())
         return action
 
-    def print_observation_desired_history(self):
+    def dump_observation_desired_history(self, path:Path):
+        messages = []
         for step in range(len(self.observed_pose)):
-            print(f'step: {step:03d}: ')
-            # breakpoint()
+            messages.append(f'step: {step:03d}: ')
             observed = np.round(self.observed_pose[step], 3).tolist()
             desired = np.round(self.desired_pose[step], 3).tolist()
-            print(f'observed: {observed[:3]}, {observed[3:7]}; {observed[8:11]}, {observed[11:15]}')
-            print(f'desired:  {desired[:3]}, {desired[3:7]}; {desired[8:11]}, {desired[11:15]}')
+            messages.append(f'observed: {observed[:3]}, {observed[3:7]}; {observed[8:11]}, {observed[11:15]}')
+            messages.append(f'desired:  {desired[:3]}, {desired[3:7]}; {desired[8:11]}, {desired[11:15]}')
+        # must be txt
+        assert path.suffix == '.txt'
+        with open(path, 'w') as f:
+            f.write('\n'.join(messages))
             
 
     def reset(self, ):
@@ -291,8 +285,6 @@ from tqdm import trange
 import sys
 import random
 def main(args):
-    intercepted = InterceptStdOut(sys.stdout)
-    sys.stdout = intercepted
     
     task_name = args['task_name']
     save_dir = args['save_dir']
@@ -357,46 +349,18 @@ def main(args):
         policy = script_policy
         try:
             for step in trange(episode_len):
-                # print(step)
-                # if step >= 588:
-                #     break
-                if step == RENDER_START_FRAME:
-                    env_q.task.set_render_state(True)
-                elif step == 0:
+
+                step += 1
+                if step == 1:
                     env_q.task.set_render_state(False)
-                # if step == MODEL_POLICY_START_FRAME:
-                #     policy = model_policy
-                # action_ee = policy(ts_q)
-                # if step >= MODEL_POLICY_START_FRAME:
-                # if step == 259:
-                #     return
-                if step >= MODEL_POLICY_START_FRAME - 2:
-                #     print(action_1:= model_policy(ts_q))
-                #     print(action_2:= script_policy(ts_q))
+                elif step == RENDER_START_FRAME:
+                    env_q.task.set_render_state(True)
+                
+
+                if step >= MODEL_POLICY_START_FRAME:
                     action_1 = model_policy(ts_q)
-                    # action_2 = script_policy(ts_q)
-                    # action_ee = action_2
-                    # print('dataset: ',action_1[:3])
-                    # print('script:  ',action_2[8:11])
-                    # print()
-                    # if step % 20 > 10:
-                    #     action_ee = action_1 
-                    # else:
-                    #     action_ee = action_2
-                    # print('model: ', action_1[:3])
-                    # print('script:', action_2[:3])
-                    # diff = action_1 - action_2
+
                     action_ee = action_1
-                    # action_ee = action_2
-                    # print(f'{step=}')
-                    # print('goal dataset', action_1[8:11])
-                    # print('goal script ', action_2[8:11])
-                    # print('diff', action_1[:3] - action_2[:3])
-                    # print('diff', diff[:3], diff[8:11])
-                    # action_ee[3:7] = action_1[3:7]
-                    # action_ee[8:11] = action_1[8:11]
-                    # action_ee[:3] = action_1[:3]
-                    # action_ee[8:11] = action_1[8:11]
                 else:
                     action_ee = script_policy(ts_q)
                 try:
@@ -414,9 +378,6 @@ def main(args):
                     # if "Failed to converge" in str(e):
                     failed_times += 1
                     continue
-                # if 259 > step >= 248:
-                #     print('actual      ', ts_q.observation['right_pose'][:3])
-                #     print()
                 episode_q.append(ts_q)
         except dm_control.rl.control.PhysicsError:
             failed_times += 1
@@ -425,7 +386,8 @@ def main(args):
                 continue
             else:
                 break
-        # model_policy.print_observation_desired_history()
+        model_policy.dump_observation_buffer(save_path / f'observation_{episode_idx}.jpg')
+
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
         data_dict = {
@@ -489,7 +451,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
-    parser.add_argument('--always_refresh', action='store_true', default=False)
+    parser.add_argument('--always_refresh', type= str2bool, required=True)
     parser.add_argument('--model_ckpt_path', action='store', type=str, required=True)
     parser.add_argument('--frame_interval', action='store', type=int, default=10)
     # parser.add_argument('--dropout_train', action='store_true',default=True)
@@ -500,3 +462,4 @@ if __name__ == '__main__':
     parser.add_argument('--absolute', type= str2bool, required=True)
     main(vars(parser.parse_args()))
 
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-06_20-34-24/checkpoint_700 --always_refresh True --absolute True

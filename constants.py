@@ -5,14 +5,14 @@ from pathlib import Path
 DATA_DIR = (Path(__file__).parent / 'generated_data').as_posix()
 SIM_TASK_CONFIGS = {
     'stir': {
-        'dataset_dir': DATA_DIR + '/stir',
+        'dataset_dir': DATA_DIR + '/stir_ACT',
         'num_episodes': 50,
         'episode_len': 400,
         'camera_names': [
                          'left_angle', 'right_angle']
     },
     'openlid': {
-        'dataset_dir': DATA_DIR + '/openlid',
+        'dataset_dir': DATA_DIR + '/openlid_ACT',
         'num_episodes': 50,
         'episode_len': 400,
         'camera_names': [
