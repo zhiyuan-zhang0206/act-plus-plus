@@ -48,7 +48,7 @@ from matplotlib import pyplot as plt
 from loguru import logger
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
-
+import copy
 class BimanualModelPolicy:
     def __init__(self, 
                  ckpt_path=None,
@@ -83,6 +83,7 @@ class BimanualModelPolicy:
         self.batch_size = 19
         dataset = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False, version = version)
         data = next(iter(dataset))
+        self.dataset_data = data
         self.action_storage = data['action']
         index = int(data['observation']['index'][self.batch_size-1, -1])
         logger.info(f"data episode {index=}")
@@ -114,7 +115,7 @@ class BimanualModelPolicy:
                 checkpoint_path=ckpt_path,
                 model=model,
                 seqlen=15,
-                dropout_train = dropout_train
+                dropout_train = True
             )
             logger.debug('model loaded')
         self.always_refresh = always_refresh
@@ -128,7 +129,7 @@ class BimanualModelPolicy:
         logger.info(f"language_instruction: {language_instruction}")
         self.language_instruction = language_instruction
         language_instruction_embedding = self.instruction_to_embedding[language_instruction]
-        self.language_instruction_embedding = np.repeat(language_instruction_embedding[np.newaxis], 15, axis=0)
+        self.language_instruction_embedding = language_instruction_embedding
         # self.language_instruction_embedding = embed([language_instruction])[0]
         # del embed
     
@@ -149,8 +150,10 @@ class BimanualModelPolicy:
     #     right_input_padded[-right_input.shape[0]:] = right_input
     #     return left_input_padded, right_input_padded
     def _add_merge_image(self, image_left, image_right):
-        self.images_left.append(image_left)
-        self.images_right.append(image_right)
+        image_left = prepare_image(image_left)
+        image_right = prepare_image(image_right)
+        self.images_left.append(np.clip(image_left.astype(np.float32) / 255.0, 0, 1))
+        self.images_right.append(np.clip(image_right.astype(np.float32) / 255.0, 0, 1))
         assert len(self.images_left) == len(self.images_right)
         if len(self.images_left) > 15:
             self.images_left.pop(0)
@@ -158,9 +161,9 @@ class BimanualModelPolicy:
             left_input_padded = np.stack(self.images_left, axis=0)
             right_input_padded = np.stack(self.images_right, axis=0)
         else:
-            left_input_padded = np.zeros((15, 300, 300, 3))
+            left_input_padded = np.zeros((15, 300, 300, 3), dtype=np.float32)
             left_input_padded[-len(self.images_left):] = np.stack(self.images_left, axis=0)
-            right_input_padded = np.zeros((15, 300, 300, 3))
+            right_input_padded = np.zeros((15, 300, 300, 3), dtype=np.float32)
             right_input_padded[-len(self.images_right):] = np.stack(self.images_right, axis=0)
         return left_input_padded, right_input_padded
     
@@ -217,16 +220,24 @@ class BimanualModelPolicy:
             right = np.concatenate([detokenized['world_vector_right'], detokenized['rotation_delta_right'], np.clip(1-detokenized['gripper_closedness_action_right'], 0,1)], axis=0)
             return left, right
     
+    def natural_language_embedding_step(self, ):
+        if not hasattr(self, 'language_instruction_embedding_list'):
+            self.language_instruction_embedding_list = [np.zeros_like(self.language_instruction_embedding) for _ in range(15)]
+        self.language_instruction_embedding_list.append(copy.deepcopy(self.language_instruction_embedding))
+        self.language_instruction_embedding_list.pop(0)
+        return copy.deepcopy(np.stack(self.language_instruction_embedding_list, axis=0))
+
     def __call__(self, ts):
         # action = np.zeros(14)
         observation = ts.observation
         # breakpoint()
-        left, right = self._add_merge_image(observation['images']['left_angle'], observation['images']['right_angle'])
         if self.step % self.frame_interval == 0:
+            left, right = self._add_merge_image(observation['images']['left_angle'], observation['images']['right_angle'])
+            natural_language_embedding_input = self.natural_language_embedding_step()
             policy_input = {
                 "image_left": left,
                 "image_right": right,
-                "natural_language_embedding": self.language_instruction_embedding,
+                "natural_language_embedding": natural_language_embedding_input,
             }
             action = self.action(policy_input)
             if self.left_pose is None or self.always_refresh:
@@ -332,9 +343,9 @@ def main(args):
         model_policy.reset()
         script_policy = script_policy_cls()
         env_ee = make_ee_sim_env(task_name)
-        # env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
+        env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        # script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
+        script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
         script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
@@ -387,7 +398,7 @@ def main(args):
             else:
                 break
         model_policy.dump_observation_buffer(save_path / f'observation_{episode_idx}.jpg')
-
+        model_policy.dump_observation_desired_history(save_path / f'observation_desired_{episode_idx}.txt')
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
 
         data_dict = {
@@ -443,6 +454,16 @@ def main(args):
 
     logger.info(f'Saved to {save_dir}')
     # logger.info(f'Success: {np.sum(success)} / {len(success)}')
+
+import tensorflow as tf
+def prepare_image(image):
+    image = tf.image.resize_with_pad(
+        image,
+        target_width=320,
+        target_height=256,
+    )
+    image = tf.image.resize(image, size=(300, 300))
+    return image.numpy()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
