@@ -275,3 +275,6 @@ if __name__ == '__main__':
     parser.add_argument('--ismirror', action='store_true')
     parser.add_argument('--save_image', action='store_true')
     main(vars(parser.parse_args()))
+
+# python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0
+

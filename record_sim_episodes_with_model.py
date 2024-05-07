@@ -27,8 +27,6 @@ def str2bool(v):
         return False
     raise ValueError('Boolean value expected.')
 
-class FailedToConvergeError(Exception):
-    pass
 
 # warnings.filterwarnings("error", message=
 # re.compile(r"Failed to converge after \d+ steps with norm \d+\.\d+"))
@@ -125,18 +123,18 @@ class BimanualModelPolicy:
         # debug
         # batch_action = self.policy.action_batch(self.dataset_data["observation"])
         # actions = [jax.tree_map(lambda x: x[i], batch_action) for i in range(len(self.dataset_data['observation']['image_left']))]
-        actions = []
-        for i in range(len(self.dataset_data['observation']['image_left'])):
-            # steps_copy = copy.deepcopy(self.dataset_data['observation'])
-            steps_copy = self.dataset_data['observation']
-            observation = {
-                "image_left": steps_copy["image_left"][i],
-                "image_right": steps_copy["image_right"][i],
-                "natural_language_embedding": steps_copy["natural_language_embedding"][i]
-            }
-            action = self.policy.action(observation)
-            actions.append(action)
-        self.predicted_actions = actions
+        # actions = []
+        # for i in range(len(self.dataset_data['observation']['image_left'])):
+        #     # steps_copy = copy.deepcopy(self.dataset_data['observation'])
+        #     steps_copy = self.dataset_data['observation']
+        #     observation = {
+        #         "image_left": steps_copy["image_left"][i],
+        #         "image_right": steps_copy["image_right"][i],
+        #         "natural_language_embedding": steps_copy["natural_language_embedding"][i]
+        #     }
+        #     action = self.policy.action(observation)
+        #     actions.append(action)
+        # self.predicted_actions = actions
 
     def set_language_instruction(self, language_instruction:str):
         logger.info(f"language_instruction: {language_instruction}")
@@ -222,9 +220,9 @@ class BimanualModelPolicy:
             right = np.concatenate([d['pose_right'].pop(0), d['gripper_right'].pop(0)], axis=-1)
             return [left, right]
         else:
-            detokenized = self.predicted_actions.pop(0)
+            # detokenized = self.predicted_actions.pop(0)
             # detokenized = self.dataset_actions.pop(0)
-            # detokenized = self.policy.action(policy_input)
+            detokenized = self.policy.action(policy_input)
             left = np.concatenate([detokenized['world_vector_left'], detokenized['rotation_delta_left'], np.clip(1-detokenized['gripper_closedness_action_left'], 0,1)], axis=0)
             right = np.concatenate([detokenized['world_vector_right'], detokenized['rotation_delta_right'], np.clip(1-detokenized['gripper_closedness_action_right'], 0,1)], axis=0)
             return left, right
@@ -303,7 +301,15 @@ def make_action_q(observation):
     action_q[6] = left_ctrl
     action_q[6+7] = right_ctrl
     return action_q
-    
+
+def configure_logging():
+    # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
+    log_dir = Path(__file__).parent / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = log_dir / f'{timestamp}.log'
+    logger.add(log_file.as_posix())
+
 from tqdm import trange
 import sys
 import random
@@ -313,6 +319,7 @@ def main(args):
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
     # always_refresh = args['always_refresh']
+    render_interval = args['render_interval']
     model_ckpt_path = args['model_ckpt_path']
     frame_interval = args['frame_interval']
     # dropout_train = args['dropout_train']
@@ -326,7 +333,7 @@ def main(args):
     random.seed(seed)
     MODEL_POLICY_START_FRAME = 200
     # MODEL_POLICY_START_FRAME -= 1
-    RENDER_START_FRAME = MODEL_POLICY_START_FRAME - 10
+    RENDER_START_FRAME = MODEL_POLICY_START_FRAME - render_interval
     assert MODEL_POLICY_START_FRAME >= RENDER_START_FRAME
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
@@ -378,7 +385,7 @@ def main(args):
                 if 1<=step < RENDER_START_FRAME:
                     env_q.task.set_render_state(False)
                 elif step >= RENDER_START_FRAME:
-                    if step % frame_interval == 0:
+                    if step % render_interval == 0:
                         env_q.task.set_render_state(True)
                     else:
                         env_q.task.set_render_state(False)
@@ -404,12 +411,10 @@ def main(args):
                 if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0:
                     action_observed = np.concatenate([ts_q.observation['left_pose'], ts_q.observation['qpos'][6:7], ts_q.observation['right_pose'], ts_q.observation['qpos'][13:14]])
                     # diff = action_model - action_script
-                    print('action script:', action_script)
-                    print('action model:', action_model)
-                    print('action observed:', action_observed)
-                    # print(diff[0:3], diff[8:11])
-                    # print('diff: ', diff)
-                    # print('\n')
+                    logger.debug(f'action script: {action_script}')
+                    logger.debug(f'action model: {action_model}')
+                    logger.debug(f'action observed: {action_observed}')
+
         except dm_control.rl.control.PhysicsError:
             failed_times += 1
             if rerun_when_error:
@@ -433,7 +438,7 @@ def main(args):
 
         joint_trajectory = joint_trajectory[:-1]
         max_timesteps = len(joint_trajectory)
-        print(f'max timesteps: {max_timesteps}')
+        logger.info(f'max timesteps: {max_timesteps}')
         # progress_bar = trange(max_timesteps)
         while joint_trajectory:
             action = joint_trajectory.pop(0)
@@ -501,6 +506,7 @@ if __name__ == '__main__':
     parser.add_argument('--rerun_when_error', action='store_true', default=False)
     parser.add_argument('--seed', action='store', type=int, default=0)
     parser.add_argument('--absolute', type= str2bool, required=True)
+    parser.add_argument('--render_interval', action='store', type=int, default=10)
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-06_23-10-32 --always_refresh True --absolute True
