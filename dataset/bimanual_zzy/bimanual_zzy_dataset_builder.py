@@ -12,7 +12,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
 
     VERSION = tfds.core.Version("0.1.4")
     RELEASE_NOTES = {
-        "0.1.4": "debugging. all meeting positions are same.",
+        "0.1.4": "debugging. all meeting positions are same. relative.",
     }
 
     def _info(self) -> tfds.core.DatasetInfo:

@@ -7,14 +7,14 @@ SIM_TASK_CONFIGS = {
     'stir': {
         'dataset_dir': DATA_DIR + '/stir_ACT',
         'num_episodes': 50,
-        'episode_len': 200,
+        'episode_len': 400,
         'camera_names': [
                          'left_angle', 'right_angle']
     },
     'openlid': {
         'dataset_dir': DATA_DIR + '/openlid_ACT',
         'num_episodes': 50,
-        'episode_len': 200,
+        'episode_len': 400,
         'camera_names': [
                          'left_angle', 'right_angle']
     },
