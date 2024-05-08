@@ -30,7 +30,6 @@ import importlib
 import warnings
 from io import StringIO
 import cv2
-from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
 from tqdm import trange
 import sys
 import random
@@ -68,6 +67,8 @@ from scipy.spatial.transform import Slerp
 import copy
 from contextlib import redirect_stdout, redirect_stderr
 import io
+from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
+logger.info(f'constants: {WORLD_VECTOR_MAX=}, {ROTATION_MAX=}, {WORLD_VECTOR_MIN=}, {ROTATION_MIN=}')
 class FailedToConverge(Exception):
     pass
 
@@ -429,9 +430,9 @@ def main(args):
                 if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0:
                     action_observed = np.concatenate([ts_q.observation['left_pose'], ts_q.observation['qpos'][6:7], ts_q.observation['right_pose'], ts_q.observation['qpos'][13:14]])
                     # diff = action_model - action_script
-                    logger.debug(f'action script: {action_script}')
-                    logger.debug(f'action model: {action_model}')
-                    logger.debug(f'action observed: {action_observed}')
+                    # logger.debug(f'action script: {action_script}')
+                    # logger.debug(f'action model: {action_model}')
+                    # logger.debug(f'action observed: {action_observed}')
            
         except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
             failed_times += 1
