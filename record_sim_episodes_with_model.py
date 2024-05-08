@@ -425,7 +425,7 @@ def main(args):
                         image = ts_q.observation['images'][cam_name]
                         image_name = f'image_{cam_name}_{step}.jpg'
                         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-                        cv2.imwrite((temp_folder / image_name).as_posix(), image)
+                        # cv2.imwrite((temp_folder / image_name).as_posix(), image)
                         
                 if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0:
                     action_observed = np.concatenate([ts_q.observation['left_pose'], ts_q.observation['qpos'][6:7], ts_q.observation['right_pose'], ts_q.observation['qpos'][13:14]])
