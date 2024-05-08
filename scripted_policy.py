@@ -201,12 +201,7 @@ class StirPolicy(BasePolicy):
         # lift_right = 0.00715
 
         left_initial_quat = Quaternion(np.array([1, 0 , 0, 0]))
-        hold_deltas = [
-            np.array([-0.0, 0, -0.1]),
-            np.array([-0.0, 0, -0.1]),
-            np.array([0.01, 0, -0.1]),
-            np.array([+0.02, 0, -0.1]),
-        ]
+
         stir_deltas = [
             np.array([-0.05, 0.0,    0.15]),
             np.array([-0.04, -0.01,  0.15]),
@@ -217,14 +212,13 @@ class StirPolicy(BasePolicy):
             meet_xyz = (cup_xyz + spoon_xyz)/2 # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.15 # + np.random.uniform(-0.1, 0.1)
             delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
+            premeet_left = meet_xyz + np.array([np.random.uniform(-0.06, -0.03), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.0)])
             delta_6 = np.array([np.random.uniform(0.05, 0.1), np.random.uniform(-0.03, 0.03), np.random.uniform(0.15, 0.20)])
+            
             random_values = {
                 "meet_xyz": meet_xyz,
                 "delta_1": delta_1,
-                "delta_2": random.choice(hold_deltas),
-                "delta_3": random.choice(hold_deltas),
-                "delta_4": random.choice(hold_deltas),
-                "delta_5": random.choice(hold_deltas),
+                "premeet_left": premeet_left,
                 "delta_6": delta_6,
                 # "delta_7":random.choice(stir_deltas),
                 # "delta_8":random.choice(stir_deltas),
@@ -240,7 +234,8 @@ class StirPolicy(BasePolicy):
             {"t": 60,  "xyz": cup_xyz + np.array([-0.01, 0.0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 90,  "xyz": cup_xyz +   np.array([-0.01, 0, 0.05]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
             # {"t": 200,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 200,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 200,  "xyz": random_values['premeet_left'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 260,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
             {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
         ]
 
@@ -328,13 +323,13 @@ class OpenLidPolicy(BasePolicy):
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
         # vertical_quaternion = Quaternion(np.array([0, -0.70710678, 0, 0.70710678]))
-        vertical_quaternion = right_initial_quat * Quaternion(axis=[1.0, 0.0, 0.0], degrees=90)
+        vertical_quaternion = right_initial_quat * Quaternion(axis=[1.0, 0.0, 0.0], degrees=-90)
         self.right_trajectory = [
             {"t": 0,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
             # {"t": 400,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
-            {"t": 20, "xyz":  right_initial_loc,            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 20, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 300, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
             {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
             {"t": 380, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep

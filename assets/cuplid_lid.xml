@@ -1,14 +1,14 @@
 <mujoco>
     <asset>
-        <mesh name="cuplid_lid" file="cuplid_lid.stl" scale="0.78 0.78 1" />
-        <mesh name="cuplid_lid_0_collision" file="cuplid_lid_edge_0.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_1_collision" file="cuplid_lid_edge_1.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_2_collision" file="cuplid_lid_edge_2.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_3_collision" file="cuplid_lid_edge_3.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_4_collision" file="cuplid_lid_edge_4.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_5_collision" file="cuplid_lid_edge_5.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_6_collision" file="cuplid_lid_edge_6.stl" scale="0.74 0.74 1" />
-        <mesh name="cuplid_lid_7_collision" file="cuplid_lid_edge_7.stl" scale="0.74 0.74 1" />
+        <mesh name="cuplid_lid" file="cuplid_lid.stl" scale="0.73 0.73 1" />
+        <mesh name="cuplid_lid_0_collision" file="cuplid_lid_edge_0.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_1_collision" file="cuplid_lid_edge_1.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_2_collision" file="cuplid_lid_edge_2.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_3_collision" file="cuplid_lid_edge_3.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_4_collision" file="cuplid_lid_edge_4.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_5_collision" file="cuplid_lid_edge_5.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_6_collision" file="cuplid_lid_edge_6.stl" scale="0.69 0.69 1" />
+        <mesh name="cuplid_lid_7_collision" file="cuplid_lid_edge_7.stl" scale="0.69 0.69 1" />
     </asset>
     <worldbody>
         <body name="cuplid_lid" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
