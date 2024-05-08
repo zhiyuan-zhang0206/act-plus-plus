@@ -1,12 +1,27 @@
 import time
 import os
+from absl import logging as absl_logging
+import logging
+
 if __name__ == '__main__':
-    # warnings.filterwarnings("error", message=(r"Failed to converge after.*"))
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
     os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-# os.environ['MUJOCO_GL'] = 'egl'
+    class WarningCaptureHandler(absl_logging.PythonHandler):
+        def emit(self, record):
+            msg = self.format(record)
+            super().emit(record)
+            if "Failed to converge" in msg:
+                raise FailedToConverge(f"Simulation failed to converge: {msg}")
+
+    absl_logger = absl_logging.get_absl_logger()
+    absl_logger.setLevel(logging.WARNING)
+
+    handler = WarningCaptureHandler()
+    absl_logger.addHandler(handler)
+
+    
 import tensorflow as tf
 import jax
 import pickle
@@ -16,7 +31,9 @@ import warnings
 from io import StringIO
 import cv2
 from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
-
+from tqdm import trange
+import sys
+import random
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -49,6 +66,14 @@ from loguru import logger
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 import copy
+from contextlib import redirect_stdout, redirect_stderr
+import io
+class FailedToConverge(Exception):
+    pass
+
+class UnstableSimulation(Exception):
+    pass
+
 class BimanualModelPolicy:
     def __init__(self, 
                  ckpt_path=None,
@@ -77,8 +102,8 @@ class BimanualModelPolicy:
         self.right_pose = None
         # return
         import sys
-        sys.path.append('/home/users/ghc/zzy')
-        sys.path.append('/home/users/ghc/zzy/open_x_embodiment-main')
+        sys.path.append(Path(__file__).parent.parent.as_posix())
+        sys.path.append((Path(__file__).parent.parent / 'open_x_embodiment-main').as_posix())
         rtx = importlib.import_module('open_x_embodiment-main' )
         self.batch_size = 19
         dataset_data_path = Path(__file__).parent / 'dataset_data.pkl'
@@ -235,7 +260,6 @@ class BimanualModelPolicy:
         return copy.deepcopy(np.stack(self.language_instruction_embedding_list, axis=0))
 
     def __call__(self, ts):
-        # action = np.zeros(14)
         observation = ts.observation
         # breakpoint()
         if self.step % self.frame_interval == 0:
@@ -303,18 +327,14 @@ def make_action_q(observation):
     return action_q
 
 def configure_logging():
-    # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
     log_dir = Path(__file__).parent / 'logs'
     log_dir.mkdir(exist_ok=True)
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     log_file = log_dir / f'{timestamp}.log'
     logger.add(log_file.as_posix())
 
-from tqdm import trange
-import sys
-import random
+
 def main(args):
-    
     task_name = args['task_name']
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
@@ -343,8 +363,7 @@ def main(args):
         script_policy_cls = StirPolicy
     else:
         raise 
-    # frame_interval = 20
-    # model_ckpt_path = None
+    
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
                                        dropout_train=True, right_hand_relative=right_hand_relative, version=version,
                                        absolute=absolute)
@@ -355,17 +374,18 @@ def main(args):
     episode_idx = 0
     failed_times_limit = 10
     failed_times = 0
+    final_rewards = []
     while episode_idx < num_episodes:
         if failed_times >= failed_times_limit:
-            logger.info('Failed too many times, stop.')
+            logger.error('Failed too many times, stop.')
             break
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
         model_policy.reset()
         script_policy = script_policy_cls()
         env_ee = make_ee_sim_env(task_name)
-        env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
+        # env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
+        # script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
         script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
@@ -375,12 +395,10 @@ def main(args):
         ts_q = env_q.reset()
         episode_q = [ts_q]
         episode_len = RENDER_START_FRAME + frame_interval * 18
-        # if episode_len >= 600:
-        #     episode_len = 600
+
         policy = script_policy
         try:
             for step in trange(episode_len):
-
                 step += 1
                 if 1<=step < RENDER_START_FRAME:
                     env_q.task.set_render_state(False)
@@ -414,17 +432,23 @@ def main(args):
                     logger.debug(f'action script: {action_script}')
                     logger.debug(f'action model: {action_model}')
                     logger.debug(f'action observed: {action_observed}')
-
-        except dm_control.rl.control.PhysicsError:
+           
+        except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
             failed_times += 1
+            logger.error(f'Failed to run episode {episode_idx+1}, error: {e}')
             if rerun_when_error:
-                logger.info('Physics error, continue.')
-                continue
-            else:
-                break
-        model_policy.dump_observation_buffer(save_path / f'observation_{episode_idx}.jpg')
-        model_policy.dump_observation_desired_history(save_path / f'observation_desired_{episode_idx}.txt')
+                num_episodes += 1
+
+        # model_policy.dump_observation_buffer(save_path / f'observation_{episode_idx}.jpg')
+        # model_policy.dump_observation_desired_history(save_path / f'observation_desired_{episode_idx}.txt')
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
+        joint_trajectory = joint_trajectory[:-1]
+
+        episode_return = np.sum([ts.reward for ts in episode_q[1:]])
+        episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
+        final_reward = episode_q[-1].reward
+        final_rewards.append(final_reward)
+        logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}, final reward: {final_reward}')
 
         data_dict = {
             '/observations/qpos': [],
@@ -436,11 +460,11 @@ def main(args):
         for cam_name in camera_names:
             data_dict[f'/observations/images/{cam_name}'] = []
 
-        joint_trajectory = joint_trajectory[:-1]
-        max_timesteps = len(joint_trajectory)
+        max_timesteps = episode_len
         logger.info(f'max timesteps: {max_timesteps}')
         # progress_bar = trange(max_timesteps)
-        while joint_trajectory:
+        existent_frame_num = min(len(joint_trajectory), len(episode_q))
+        for i in range(existent_frame_num):
             action = joint_trajectory.pop(0)
             ts_q = episode_q.pop(0)
             # ts = episode.pop(0)
@@ -451,7 +475,13 @@ def main(args):
             data_dict['/action'].append(action)
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts_q.observation['images'][cam_name])
+        if existent_frame_num < max_timesteps:
+            logger.warning(f'Episode: {episode_idx+1}/{num_episodes} is not fully recorded, {max_timesteps - existent_frame_num} steps are missing.')
+            for i in range(max_timesteps - existent_frame_num):
+                for key, data_list in data_dict.items():
+                    data_list.append(data_list[-1])
 
+            logger.info(f'padded {max_timesteps - existent_frame_num} steps.')
         # HDF5
         data_path = save_path / f'episode_{episode_idx}'
         data_path.parent.mkdir(parents=True, exist_ok=True)
@@ -477,10 +507,11 @@ def main(args):
                 root[name][...] = array
         episode_idx += 1
 
+    logger.info(f'Final rewards: {final_rewards}')
+    logger.info(f'Max final rewards: {np.max(final_rewards)}, mean final rewards: {np.mean(final_rewards)}, min final rewards: {np.min(final_rewards)}')
     logger.info(f'Saved to {save_dir}')
     # logger.info(f'Success: {np.sum(success)} / {len(success)}')
 
-import tensorflow as tf
 def prepare_image(image):
     image = tf.image.resize_with_pad(
         image,
@@ -509,4 +540,6 @@ if __name__ == '__main__':
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-06_23-10-32 --always_refresh True --absolute True
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-06_23-10-32 --always_refresh True --absolute True --num_episodes 10
+# python visualize_episodes.py 
+# python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0
