@@ -1,7 +1,8 @@
 import os
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 import torch
 import numpy as np
 import pickle
@@ -326,14 +327,9 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     episode_returns = []
     highest_rewards = []
     for rollout_id in range(num_rollouts):
-        # if real_robot:
-        #     e()
+
         rollout_id += 0
         ### set task
-        # if 'sim_transfer_cube' in task_name:
-            # BOX_POSE[0] = sample_box_pose() # used in sim reset
-        # elif 'sim_insertion' in task_name:
-            # BOX_POSE[0] = np.concatenate(sample_insertion_pose()) # used in sim reset
 
         ts = env.reset()
 
@@ -420,9 +416,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                         raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
                     else:
                         raw_action = all_actions[:, t % query_frequency]
-                        # if t % query_frequency == query_frequency - 1:
-                        #     # zero out base actions to avoid overshooting
-                        #     raw_action[0, -2:] = 0
+
                 elif config['policy_class'] == "Diffusion":
                     if t % query_frequency == 0:
                         all_actions = policy(qpos, curr_image)
@@ -438,28 +432,13 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                     #     collect_base_action(all_actions, norm_episode_all_base_actions)
                 else:
                     raise NotImplementedError
-                # print('query policy: ', time.time() - time3)
 
                 ### post-process actions
                 time4 = time.time()
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
                 target_qpos = action[:-2]
-
-                # if use_actuator_net:
-                #     assert(not temporal_agg)
-                #     if t % prediction_len == 0:
-                #         offset_start_ts = t + history_len
-                #         actuator_net_in = np.array(norm_episode_all_base_actions[offset_start_ts - history_len: offset_start_ts + future_len])
-                #         actuator_net_in = torch.from_numpy(actuator_net_in).float().unsqueeze(dim=0).cuda()
-                #         pred = actuator_network(actuator_net_in)
-                #         base_action_chunk = actuator_unnorm(pred.detach().cpu().numpy()[0])
-                #     base_action = base_action_chunk[t % prediction_len]
-                # else:
                 base_action = action[-2:]
-                # base_action = calibrate_linear_vel(base_action, c=0.19)
-                # base_action = postprocess_base_action(base_action)
-                # print('post process: ', time.time() - time4)
 
                 ### step the environment
                 time5 = time.time()
@@ -467,22 +446,15 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                     ts = env.step(target_qpos, base_action)
                 else:
                     ts = env.step(target_qpos)
-                # print('step env: ', time.time() - time5)
-
                 ### for visualization
                 qpos_list.append(qpos_numpy)
                 target_qpos_list.append(target_qpos)
                 rewards.append(ts.reward)
                 duration = time.time() - time1
                 sleep_time = max(0, DT - duration)
-                # print(sleep_time)
                 time.sleep(sleep_time)
-                # time.sleep(max(0, DT - duration - culmulated_delay))
                 if duration >= DT:
                     culmulated_delay += (duration - DT)
-                    # print(f'Warning: step duration: {duration:.3f} s at step {t} longer than DT: {DT} s, culmulated delay: {culmulated_delay:.3f} s')
-                # else:
-                #     culmulated_delay = max(0, culmulated_delay - (DT - duration))
 
             print(f'Avg fps {max_timesteps / (time.time() - time0)}')
             plt.close()
@@ -676,4 +648,5 @@ if __name__ == '__main__':
     main(vars(parser.parse_args()))
 
 # python3 imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
-# python3 imitate_episodes.py --task_name stir --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+# python3 imitate_episodes.py --task_name stir-act --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+# python3 imitate_episodes.py --task_name stir-openlid --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0

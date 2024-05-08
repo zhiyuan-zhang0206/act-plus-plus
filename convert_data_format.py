@@ -164,11 +164,8 @@ def str2bool(v):
 
 # python convert_data_format.py --right_hand_relative False --absolute True
 
-def main():
-    parser = ArgumentParser()
-    parser.add_argument('--right_hand_relative', type=str2bool, required=True)
-    parser.add_argument('--absolute', type=str2bool, required=True)
-    args = parser.parse_args()
+def main(args):
+
     hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
     save_dir:Path = hdf5_directory.parent / 'processed_data'
     print(f'saving to {save_dir}')
@@ -206,7 +203,11 @@ def main():
             p.rmdir()
     save_dir.rmdir()
 if __name__ == '__main__':
-    main()
+    parser = ArgumentParser()
+    parser.add_argument('--right_hand_relative', type=str2bool, required=True)
+    parser.add_argument('--absolute', type=str2bool, required=True)
+    args = parser.parse_args()
+    main(args)
     # test()
 
-# python convert_data_format.py --right_hand_relative False --absolute False
+# python convert_data_format.py --right_hand_relative False --absolute True

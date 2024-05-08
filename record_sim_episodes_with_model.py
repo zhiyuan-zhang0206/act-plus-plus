@@ -217,6 +217,11 @@ class BimanualModelPolicy:
         margin_frame_number = 3
         assert current_pose.shape == new_pose.shape
         diff = new_pose - current_pose
+        threshold = 0.08
+        if (diff[0:3].abs()>threshold).any() or (diff[8:11].abs()>threshold).any():
+            logger.warning(f"Difference in position is too large: {diff[0:3]} or {diff[8:11]}. Clipping.")
+            diff[0:3] = np.clip(diff[0:3], -threshold, threshold)
+            diff[8:11] = np.clip(diff[8:11], -threshold, threshold)
         actions = []
         start_quaternion_left = R.from_quat(current_pose[3:7])
         end_quaternion_left = R.from_quat(new_pose[3:7])
