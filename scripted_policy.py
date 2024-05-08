@@ -296,8 +296,8 @@ class OpenLidPolicy(BasePolicy):
         if random_values is None:
             meet_xyz = cup_xyz.copy() # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
-            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.05, 0.0), np.random.uniform(-0.05, +0.05), np.random.uniform(-0.05, -0.02)])
-            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.0, 0.05), np.random.uniform(-0.05, +0.05), np.random.uniform(0.03, +0.05)])
+            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.06, -0.03), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.03)])
+            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
             # left_hand_tilt_angle = np.random.uniform(0, 10)
             left_hand_tilt_angle = 15
             random_values = {
@@ -318,6 +318,7 @@ class OpenLidPolicy(BasePolicy):
             {"t": 25,  "xyz": cup_xyz + np.array(  [0.0, 0.0, 0.06]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 40,  "xyz": cup_xyz + np.array(  [0.06, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 55,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 100,  "xyz": cup_xyz +   np.array([0.12, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
             {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
             {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
             {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 

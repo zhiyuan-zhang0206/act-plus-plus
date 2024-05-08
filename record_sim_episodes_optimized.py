@@ -245,3 +245,5 @@ if __name__ == '__main__':
 # python visualize_episodes.py --dataset_dir generated_data/stir
 # python visualize_episodes.py --dataset_dir generated_data/openlid
 
+# python record_sim_episodes_optimized.py --task_name openlid --dataset_dir generated_data/ --onscreen_render --render_start 1 --render_interval 1
+
