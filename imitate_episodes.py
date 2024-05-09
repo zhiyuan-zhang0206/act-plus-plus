@@ -15,7 +15,7 @@ from einops import rearrange
 import wandb
 import time
 from torchvision import transforms
-
+from scripted_policy import StirPolicy, OpenLidPolicy
 from constants import FPS
 from constants import PUPPET_GRIPPER_JOINT_OPEN
 from utils import load_data # data functions
@@ -23,7 +23,7 @@ from utils import sample_box_pose, sample_insertion_pose # robot functions
 from utils import compute_dict_mean, set_seed, detach_dict, calibrate_linear_vel, postprocess_base_action # helper functions
 from policy import ACTPolicy #, CNNMLPPolicy, DiffusionPolicy
 from visualize_episodes import save_videos
-
+from utils import make_action_q
 from detr.models.latent_model import Latent_Model_Transformer
 
 from sim_env import BOX_POSE
@@ -229,6 +229,11 @@ def get_image(ts, camera_names, rand_crop_resize=False):
     
     return curr_image
 
+TASK_NAME_TO_SCRIPT_POLICY_CLASS = {
+    'stir-act': StirPolicy,
+    'openlid-act': OpenLidPolicy,
+}
+SCRIPT_POLICY_EXECUTION_FRAME_NUM = 200
 
 def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     set_seed(1000)
@@ -246,7 +251,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     vq = config['policy_config']['vq']
     actuator_config = config['actuator_config']
     use_actuator_net = actuator_config['actuator_network_dir'] is not None
-
+    script_policy_class = TASK_NAME_TO_SCRIPT_POLICY_CLASS[task_name]
     # load policy and stats
     ckpt_path = os.path.join(ckpt_dir, ckpt_name)
     policy = make_policy(policy_class, policy_config)
@@ -308,7 +313,9 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
         from sim_env import make_sim_env
         from ee_sim_env import make_ee_sim_env
         env_ee = make_ee_sim_env(task_name)
-        env_ee.reset()
+        ts_ee = env_ee.reset()
+        script_policy = script_policy_class()
+        script_policy.generate_trajectory(ts_ee)
         object_info = env_ee.task.object_info
         env = make_sim_env(task_name, object_info)
         env_max_reward = env.task.max_reward
@@ -379,7 +386,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                     curr_image = get_image(ts, camera_names, rand_crop_resize=(config['policy_class'] == 'Diffusion'))
                 # print('get image: ', time.time() - time2)
 
-                if t == 0:
+                if t == SCRIPT_POLICY_EXECUTION_FRAME_NUM:
                     # warm up
                     for _ in range(10):
                         policy(qpos, curr_image)
@@ -389,33 +396,40 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                 ### query policy
                 time3 = time.time()
                 if config['policy_class'] == "ACT":
-                    if t % query_frequency == 0:
-                        if vq:
-                            if rollout_id == 0:
-                                for _ in range(10):
-                                    vq_sample = latent_model.generate(1, temperature=1, x=None)
-                                    print(torch.nonzero(vq_sample[0])[:, 1].cpu().numpy())
-                            vq_sample = latent_model.generate(1, temperature=1, x=None)
-                            all_actions = policy(qpos, curr_image, vq_sample=vq_sample)
-                        else:
-                            # e()
-                            all_actions = policy(qpos, curr_image)
-                        # if use_actuator_net:
-                        #     collect_base_action(all_actions, norm_episode_all_base_actions)
-                        if real_robot:
-                            all_actions = torch.cat([all_actions[:, :-BASE_DELAY, :-2], all_actions[:, BASE_DELAY:, -2:]], dim=2)
-                    if temporal_agg:
-                        all_time_actions[[t], t:t+num_queries] = all_actions
-                        actions_for_curr_step = all_time_actions[:, t]
-                        actions_populated = torch.all(actions_for_curr_step != 0, axis=1)
-                        actions_for_curr_step = actions_for_curr_step[actions_populated]
-                        k = 0.01
-                        exp_weights = np.exp(-k * np.arange(len(actions_for_curr_step)))
-                        exp_weights = exp_weights / exp_weights.sum()
-                        exp_weights = torch.from_numpy(exp_weights).cuda().unsqueeze(dim=1)
-                        raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
+                    script_execute = t < SCRIPT_POLICY_EXECUTION_FRAME_NUM
+                    if script_execute:
+                        action_ee = script_policy(ts)
+                        ts_ee = env_ee.step(action_ee)
+                        raw_action = make_action_q(ts_ee.observation)
+                        raw_action = torch.from_numpy(raw_action).unsqueeze(0)
                     else:
-                        raw_action = all_actions[:, t % query_frequency]
+                        if t % query_frequency == 0:
+                            if vq:
+                                if rollout_id == 0:
+                                    for _ in range(10):
+                                        vq_sample = latent_model.generate(1, temperature=1, x=None)
+                                        print(torch.nonzero(vq_sample[0])[:, 1].cpu().numpy())
+                                vq_sample = latent_model.generate(1, temperature=1, x=None)
+                                all_actions = policy(qpos, curr_image, vq_sample=vq_sample)
+                            else:
+                                # e()
+                                all_actions = policy(qpos, curr_image)
+                            # if use_actuator_net:
+                            #     collect_base_action(all_actions, norm_episode_all_base_actions)
+                            if real_robot:
+                                all_actions = torch.cat([all_actions[:, :-BASE_DELAY, :-2], all_actions[:, BASE_DELAY:, -2:]], dim=2)
+                            if temporal_agg:
+                                all_time_actions[[t], t:t+num_queries] = all_actions
+                                actions_for_curr_step = all_time_actions[:, t]
+                                actions_populated = torch.all(actions_for_curr_step != 0, axis=1)
+                                actions_for_curr_step = actions_for_curr_step[actions_populated]
+                                k = 0.01
+                                exp_weights = np.exp(-k * np.arange(len(actions_for_curr_step)))
+                                exp_weights = exp_weights / exp_weights.sum()
+                                exp_weights = torch.from_numpy(exp_weights).cuda().unsqueeze(dim=1)
+                                raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
+                            else:
+                                raw_action = all_actions[:, t % query_frequency]
 
                 elif config['policy_class'] == "Diffusion":
                     if t % query_frequency == 0:
@@ -436,7 +450,8 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                 ### post-process actions
                 time4 = time.time()
                 raw_action = raw_action.squeeze(0).cpu().numpy()
-                action = post_process(raw_action)
+                if not script_execute:
+                    action = post_process(raw_action)
                 target_qpos = action[:-2]
                 base_action = action[-2:]
 

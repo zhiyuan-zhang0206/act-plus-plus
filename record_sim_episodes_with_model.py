@@ -33,7 +33,7 @@ import cv2
 from tqdm import trange
 import sys
 import random
-
+from utils import make_action_q
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -218,7 +218,7 @@ class BimanualModelPolicy:
         assert current_pose.shape == new_pose.shape
         diff = new_pose - current_pose
         threshold = 0.08
-        if (diff[0:3].abs()>threshold).any() or (diff[8:11].abs()>threshold).any():
+        if (np.abs(diff[0:3])>threshold).any() or (np.abs(diff[8:11])>threshold).any():
             logger.warning(f"Difference in position is too large: {diff[0:3]} or {diff[8:11]}. Clipping.")
             diff[0:3] = np.clip(diff[0:3], -threshold, threshold)
             diff[8:11] = np.clip(diff[8:11], -threshold, threshold)
@@ -324,13 +324,7 @@ class BimanualModelPolicy:
                                 'pose_left':np.concatenate([self.action_storage['world_vector_left'], self.action_storage['rotation_delta_left']], axis=-1)[self.batch_size-1].tolist()[1:],
                                 'pose_right':np.concatenate([self.action_storage['world_vector_right'],self.action_storage['rotation_delta_right']], axis=-1)[self.batch_size-1].tolist()[1:]}
 
-def make_action_q(observation):
-    action_q = observation['qpos'].copy()
-    left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][0])
-    right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][2])
-    action_q[6] = left_ctrl
-    action_q[6+7] = right_ctrl
-    return action_q
+
 
 def configure_logging():
     log_dir = Path(__file__).parent / 'logs'
@@ -546,6 +540,6 @@ if __name__ == '__main__':
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-06_23-10-32 --always_refresh True --absolute True --num_episodes 10
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-09_01-23-52/checkpoint_4100 --always_refresh True --absolute True --num_episodes 10
 # python visualize_episodes.py 
 # python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0

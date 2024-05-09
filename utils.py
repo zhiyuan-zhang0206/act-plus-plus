@@ -12,6 +12,14 @@ from loguru import logger
 
 # import IPython
 # e = IPython.embed
+from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN
+def make_action_q(observation):
+    action_q = observation['qpos'].copy()
+    left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][0])
+    right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(observation['gripper_ctrl'][2])
+    action_q[6] = left_ctrl
+    action_q[6+7] = right_ctrl
+    return action_q
 
 def flatten_list(l):
     return [item for sublist in l for item in sublist]
@@ -155,7 +163,7 @@ try:
         all_action_data = []
         all_episode_len = []
 
-        for dataset_path in dataset_path_list:
+        for dataset_path in sorted(dataset_path_list):
             try:
                 with h5py.File(dataset_path, 'r') as root:
                     qpos = root['/observations/qpos'][()]
@@ -171,6 +179,7 @@ try:
             except Exception as e:
                 print(f'Error loading {dataset_path} in get_norm_stats')
                 print(e)
+                raise
                 quit()
             all_qpos_data.append(torch.from_numpy(qpos))
             all_action_data.append(torch.from_numpy(action))

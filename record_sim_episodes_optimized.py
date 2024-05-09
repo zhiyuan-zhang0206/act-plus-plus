@@ -56,9 +56,11 @@ def main(args):
     Save this episode of data, and continue to next episode of data collection.
     """
     configure_logging()
+    logger.info(args)
     start_index = args['start_index']
     logger.info(f'Start index: {start_index}')
     task_name = args['task_name']
+    final_reward_threshold = args['final_reward_threshold']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
     onscreen_render = args['onscreen_render']
@@ -132,6 +134,9 @@ def main(args):
         episode_return = np.sum([ts.reward for ts in episode_q[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
         final_reward = episode_q[-1].reward
+        if final_reward <= final_reward_threshold:
+            logger.info(f'final reward is too small: {final_reward}. Discarding.')
+            continue
         final_rewards.append(final_reward)
         logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}, final reward: {final_reward}')
 
@@ -237,6 +242,7 @@ if __name__ == '__main__':
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
     parser.add_argument('--render_start', action='store', type=int, help='render_start', required=False, default=250)
     parser.add_argument('--render_interval', action='store', type=int, help='render_interval', required=False, default=1)
+    parser.add_argument('--final_reward_threshold', action='store', type=float, help='final_reward_threshold', required=False, default=0.1)
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_optimized.py --task_name stir --dataset_dir generated_data/stir --onscreen_render
