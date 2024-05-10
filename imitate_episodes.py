@@ -343,7 +343,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         ### onscreen render
         if onscreen_render:
             ax = plt.subplot()
-            plt_img = ax.imshow(env._physics.render(height=480, width=640, camera_id=onscreen_cam))
+            plt_img = ax.imshow(env._physics.render(height=300, width=300, camera_id=onscreen_cam))
             plt.ion()
 
         ### evaluation loop
@@ -366,7 +366,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                 time1 = time.time()
                 ### update onscreen render and wait for DT
                 if onscreen_render:
-                    image = env._physics.render(height=480, width=640, camera_id=onscreen_cam)
+                    image = env._physics.render(height=300, width=300, camera_id=onscreen_cam)
                     plt_img.set_data(image)
                     plt.pause(DT)
 

@@ -158,7 +158,7 @@ def main(args):
         For each timestep:
         observations
         - images
-            - each_cam_name     (480, 640, 3) 'uint8'
+            - each_cam_name     (300, 300, 3) 'uint8'
         - qpos                  (14,)         'float64'
         - qvel                  (14,)         'float64'
 

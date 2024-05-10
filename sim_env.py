@@ -33,7 +33,7 @@ def make_sim_env(task_name, object_info:dict=None)->control.Environment:
                                         left_gripper_velocity (1),  # normalized gripper velocity (pos: opening, neg: closing)
                                         right_arm_qvel (6),         # absolute joint velocity (rad)
                                         right_gripper_qvel (1)]     # normalized gripper velocity (pos: opening, neg: closing)
-                        "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
+                        "images": {"main": (300x300x3)}        # h, w, c, dtype='uint8'
     """
     # if 'sim_transfer_cube' in task_name:
     #     xml_path = os.path.join(XML_DIR, f'bimanual_viperx_transfer_cube.xml')

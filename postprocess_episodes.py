@@ -146,8 +146,8 @@ def main(args):
                     _ = image.create_dataset(cam_name, (max_timesteps, padded_size), dtype='uint8',
                                             chunks=(1, padded_size), )
                 else:
-                    _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), dtype='uint8',
-                                            chunks=(1, 480, 640, 3), )
+                    _ = image.create_dataset(cam_name, (max_timesteps, 300, 300, 3), dtype='uint8',
+                                            chunks=(1, 300, 300, 3), )
             qpos = obs.create_dataset('qpos', (max_timesteps, 14))
             qvel = obs.create_dataset('qvel', (max_timesteps, 14))
             action = root.create_dataset('action', (max_timesteps, 14))
