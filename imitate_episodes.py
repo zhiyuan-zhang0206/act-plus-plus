@@ -2,7 +2,7 @@ import os
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import torch
 import numpy as np
 import pickle
@@ -25,7 +25,7 @@ from policy import ACTPolicy #, CNNMLPPolicy, DiffusionPolicy
 from visualize_episodes import save_videos
 from utils import make_action_q
 from detr.models.latent_model import Latent_Model_Transformer
-
+from tqdm import tqdm
 from sim_env import BOX_POSE
 
 import IPython
@@ -235,7 +235,7 @@ TASK_NAME_TO_SCRIPT_POLICY_CLASS = {
 }
 SCRIPT_POLICY_EXECUTION_FRAME_NUM = 200
 
-def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
+def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     set_seed(1000)
     ckpt_dir = config['ckpt_dir']
     state_dim = config['state_dim']
@@ -312,12 +312,12 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     else:
         from sim_env import make_sim_env
         from ee_sim_env import make_ee_sim_env
-        env_ee = make_ee_sim_env(task_name)
+        env_ee = make_ee_sim_env(task_name.removesuffix('-act'))
         ts_ee = env_ee.reset()
         script_policy = script_policy_class()
         script_policy.generate_trajectory(ts_ee)
         object_info = env_ee.task.object_info
-        env = make_sim_env(task_name, object_info)
+        env = make_sim_env(task_name.removesuffix('-act'), object_info)
         env_max_reward = env.task.max_reward
         env.task.set_render_state(True)
 
@@ -362,7 +362,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
             time0 = time.time()
             DT = 1 / FPS
             culmulated_delay = 0 
-            for t in range(max_timesteps):
+            for t in tqdm(range(max_timesteps), desc=f'Rollout {rollout_id}/{num_rollouts}'):
                 time1 = time.time()
                 ### update onscreen render and wait for DT
                 if onscreen_render:
@@ -450,10 +450,13 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
                 ### post-process actions
                 time4 = time.time()
                 raw_action = raw_action.squeeze(0).cpu().numpy()
-                if not script_execute:
+                if script_execute:
+                    action = raw_action
+                    target_qpos = action
+                else:
                     action = post_process(raw_action)
-                target_qpos = action[:-2]
-                base_action = action[-2:]
+                    target_qpos = action
+                    base_action = action[-2:]
 
                 ### step the environment
                 time5 = time.time()

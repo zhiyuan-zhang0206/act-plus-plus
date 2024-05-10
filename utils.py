@@ -150,9 +150,11 @@ try:
 
                 qpos_data = (qpos_data - self.norm_stats["qpos_mean"]) / self.norm_stats["qpos_std"]
 
-            except:
-                print(f'Error loading {dataset_path} in __getitem__')
+            except Exception as e:
+                print(f'Error loading {dataset_path} in __getitem__. {e=}')
+                raise
                 quit()
+
 
             # print(image_data.dtype, qpos_data.dtype, action_data.dtype, is_pad.dtype)
             return image_data, qpos_data, action_data, is_pad
@@ -280,9 +282,14 @@ def load_data(dataset_dir_l, name_filter, camera_names, batch_size_train, batch_
     val_dataset = EpisodicDataset(dataset_path_list, camera_names, norm_stats, val_episode_ids, val_episode_len, chunk_size, policy_class)
     train_num_workers = (8 if os.getlogin() == 'zfu' else 16) if train_dataset.augment_images else 2
     val_num_workers = 8 if train_dataset.augment_images else 2
+    prefetch_factor = 2
+    if os.getenv('ZZY_DEBUG') == 'True':
+        train_num_workers = 0
+        val_num_workers = 0
+        prefetch_factor = None
     print(f'Augment images: {train_dataset.augment_images}, train_num_workers: {train_num_workers}, val_num_workers: {val_num_workers}')
-    train_dataloader = DataLoader(train_dataset, batch_sampler=batch_sampler_train, pin_memory=True, num_workers=train_num_workers, prefetch_factor=2)
-    val_dataloader = DataLoader(val_dataset, batch_sampler=batch_sampler_val, pin_memory=True, num_workers=val_num_workers, prefetch_factor=2)
+    train_dataloader = DataLoader(train_dataset, batch_sampler=batch_sampler_train, pin_memory=True, num_workers=train_num_workers, prefetch_factor=prefetch_factor)
+    val_dataloader = DataLoader(val_dataset, batch_sampler=batch_sampler_val, pin_memory=True, num_workers=val_num_workers, prefetch_factor=prefetch_factor)
 
     return train_dataloader, val_dataloader, norm_stats, train_dataset.is_sim
 

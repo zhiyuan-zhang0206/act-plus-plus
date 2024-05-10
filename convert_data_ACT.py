@@ -11,31 +11,23 @@ START_FRAME_INDEX = START_FRAME
 camera_names = ['left_angle', 'right_angle']
 def process_data(path:Path, save_dir:Path):
     save_dir.mkdir(exist_ok=True, parents=True)
-    with h5py.File(path.as_posix(), 'r') as root:
-        left_pose = root['/observations/left_pose'][()][START_FRAME_INDEX:]
-        right_pose = root['/observations/right_pose'][()][START_FRAME_INDEX:]
-        left_image = root['/observations/images/left_angle'][()][START_FRAME_INDEX:]
-        right_image = root['/observations/images/right_angle'][()][START_FRAME_INDEX:]
-        action = root['/action'][()][START_FRAME_INDEX:]
+    save_path = save_dir / path.name
+    with h5py.File(path.as_posix(), 'r') as root, h5py.File(save_path.as_posix(), 'w',) as new_root:
+        for key, value in root.attrs.items():
+            new_root.attrs[key] = value
 
-        save_path = save_dir / f'{path.name}'
-        with h5py.File(save_path, 'w') as new_root:
-            # Copy datasets that are unchanged
-            for key in root.keys():
-                if key not in ['observations/left_pose', 'observations/right_pose', 'observations/images/left_angle', 'observations/images/right_angle', 'action']:
-                    new_root.copy(root[key], key)
+        for key, value in root['random_values'].items():
+            new_root.create_dataset(f'random_values/{key}', data=value)
 
-            # Write or overwrite modified datasets
-            def create_or_replace(group, name, data):
-                if name in group:
-                    del group[name]
-                group.create_dataset(name, data=data)
+        for key, value in root['observations'].items():
+            if key == 'images':
+                for cam_name, image in value.items():
+                    new_root.create_dataset(f'observations/{key}/{cam_name}', data=image[START_FRAME_INDEX:])
+            else:
+                new_root.create_dataset(f'observations/{key}', data=value[START_FRAME_INDEX:])
+        new_root.create_dataset('action', data=root['action'][START_FRAME_INDEX:])
+        new_root.create_dataset('objects_start_pose', data=root['objects_start_pose'])
 
-            create_or_replace(new_root, 'observations/left_pose', left_pose)
-            create_or_replace(new_root, 'observations/right_pose', right_pose)
-            create_or_replace(new_root, 'observations/images/left_angle', left_image)
-            create_or_replace(new_root, 'observations/images/right_angle', right_image)
-            create_or_replace(new_root, 'action', action)
 def main():
     root_directory = Path(__file__).parent / 'generated_data'
     # from_directory = Path(__file__).parent / 'generated_data' / 'stir'
