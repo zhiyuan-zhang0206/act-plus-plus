@@ -6,6 +6,7 @@ if __name__ == '__main__':
 import torch
 import numpy as np
 import pickle
+import cv2
 import argparse
 import matplotlib.pyplot as plt
 from copy import deepcopy
@@ -247,7 +248,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     max_timesteps = config['episode_len']
     task_name = config['task_name']
     temporal_agg = config['temporal_agg']
-    onscreen_cam = 'angle'
+    onscreen_cam = 'left_angle'
     vq = config['policy_config']['vq']
     actuator_config = config['actuator_config']
     use_actuator_net = actuator_config['actuator_network_dir'] is not None
@@ -312,14 +313,8 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     else:
         from sim_env import make_sim_env
         from ee_sim_env import make_ee_sim_env
-        env_ee = make_ee_sim_env(task_name.removesuffix('-act'))
-        ts_ee = env_ee.reset()
-        script_policy = script_policy_class()
-        script_policy.generate_trajectory(ts_ee)
-        object_info = env_ee.task.object_info
-        env = make_sim_env(task_name.removesuffix('-act'), object_info)
-        env_max_reward = env.task.max_reward
-        env.task.set_render_state(True)
+        
+
 
     query_frequency = policy_config['num_queries']
     if temporal_agg:
@@ -337,13 +332,21 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
 
         rollout_id += 0
         ### set task
-
+        env_ee = make_ee_sim_env(task_name.removesuffix('-act'))
+        ts_ee = env_ee.reset()
+        script_policy = script_policy_class()
+        script_policy.generate_trajectory(ts_ee)
+        object_info = env_ee.task.object_info
+        env = make_sim_env(task_name.removesuffix('-act'), object_info)
+        env_max_reward = env.task.max_reward
+        env.task.set_render_state(True)
         ts = env.reset()
 
         ### onscreen render
         if onscreen_render:
             ax = plt.subplot()
-            plt_img = ax.imshow(env._physics.render(height=300, width=300, camera_id=onscreen_cam))
+            image = env._physics.render(height=300, width=300, camera_id=onscreen_cam)
+            plt_img = ax.imshow(image)
             plt.ion()
 
         ### evaluation loop
@@ -351,7 +354,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
             all_time_actions = torch.zeros([max_timesteps, max_timesteps+num_queries, 16]).cuda()
 
         # qpos_history = torch.zeros((1, max_timesteps, state_dim)).cuda()
-        qpos_history_raw = np.zeros((max_timesteps, state_dim))
+        # qpos_history_raw = np.zeros((max_timesteps, state_dim))
         image_list = [] # for visualization
         qpos_list = []
         target_qpos_list = []
@@ -362,14 +365,18 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
             time0 = time.time()
             DT = 1 / FPS
             culmulated_delay = 0 
-            for t in tqdm(range(max_timesteps), desc=f'Rollout {rollout_id}/{num_rollouts}'):
+            for t in tqdm(range(max_timesteps + SCRIPT_POLICY_EXECUTION_FRAME_NUM), desc=f'Rollout {rollout_id}/{num_rollouts}'):
                 time1 = time.time()
+                script_execute = t < SCRIPT_POLICY_EXECUTION_FRAME_NUM
                 ### update onscreen render and wait for DT
                 if onscreen_render:
                     image = env._physics.render(height=300, width=300, camera_id=onscreen_cam)
                     plt_img.set_data(image)
                     plt.pause(DT)
-
+                if os.getenv('ZZY_DEBUG') is not None and t >= SCRIPT_POLICY_EXECUTION_FRAME_NUM:
+                    image = env._physics.render(height=300, width=300, camera_id=onscreen_cam)
+                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(f'./debug/debug_{t}.png', image)
                 ### process previous timestep to get qpos and image_list
                 time2 = time.time()
                 obs = ts.observation
@@ -377,8 +384,11 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                     image_list.append(obs['images'])
                 else:
                     image_list.append({'main': obs['image']})
+                # if os.getenv('ZZY_DEBUG') is not None and t == 10:
+                    # save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
                 qpos_numpy = np.array(obs['qpos'])
-                qpos_history_raw[t] = qpos_numpy
+                # if not script_execute:
+                #     qpos_history_raw[t - SCRIPT_POLICY_EXECUTION_FRAME_NUM] = qpos_numpy
                 qpos = pre_process(qpos_numpy)
                 qpos = torch.from_numpy(qpos).float().cuda().unsqueeze(0)
                 # qpos_history[:, t] = qpos
@@ -396,7 +406,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                 ### query policy
                 time3 = time.time()
                 if config['policy_class'] == "ACT":
-                    script_execute = t < SCRIPT_POLICY_EXECUTION_FRAME_NUM
+                    
                     if script_execute:
                         action_ee = script_policy(ts)
                         ts_ee = env_ee.step(action_ee)
@@ -418,18 +428,18 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                             #     collect_base_action(all_actions, norm_episode_all_base_actions)
                             if real_robot:
                                 all_actions = torch.cat([all_actions[:, :-BASE_DELAY, :-2], all_actions[:, BASE_DELAY:, -2:]], dim=2)
-                            if temporal_agg:
-                                all_time_actions[[t], t:t+num_queries] = all_actions
-                                actions_for_curr_step = all_time_actions[:, t]
-                                actions_populated = torch.all(actions_for_curr_step != 0, axis=1)
-                                actions_for_curr_step = actions_for_curr_step[actions_populated]
-                                k = 0.01
-                                exp_weights = np.exp(-k * np.arange(len(actions_for_curr_step)))
-                                exp_weights = exp_weights / exp_weights.sum()
-                                exp_weights = torch.from_numpy(exp_weights).cuda().unsqueeze(dim=1)
-                                raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
-                            else:
-                                raw_action = all_actions[:, t % query_frequency]
+                        if temporal_agg:
+                            all_time_actions[[t], t:t+num_queries] = all_actions
+                            actions_for_curr_step = all_time_actions[:, t]
+                            actions_populated = torch.all(actions_for_curr_step != 0, axis=1)
+                            actions_for_curr_step = actions_for_curr_step[actions_populated]
+                            k = 0.01
+                            exp_weights = np.exp(-k * np.arange(len(actions_for_curr_step)))
+                            exp_weights = exp_weights / exp_weights.sum()
+                            exp_weights = torch.from_numpy(exp_weights).cuda().unsqueeze(dim=1)
+                            raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
+                        else:
+                            raw_action = all_actions[:, t % query_frequency]
 
                 elif config['policy_class'] == "Diffusion":
                     if t % query_frequency == 0:
@@ -449,7 +459,8 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
 
                 ### post-process actions
                 time4 = time.time()
-                raw_action = raw_action.squeeze(0).cpu().numpy()
+                if raw_action.shape[0] == 1:
+                    raw_action = raw_action.squeeze(0).cpu().numpy()
                 if script_execute:
                     action = raw_action
                     target_qpos = action
@@ -470,7 +481,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                 rewards.append(ts.reward)
                 duration = time.time() - time1
                 sleep_time = max(0, DT - duration)
-                time.sleep(sleep_time)
+                # time.sleep(sleep_time)
                 if duration >= DT:
                     culmulated_delay += (duration - DT)
 
@@ -557,6 +568,7 @@ def train_bc(train_dataloader, val_dataloader, config):
     best_ckpt_info = None
     
     train_dataloader = repeater(train_dataloader)
+    print(f'Start training. validate every {validate_every} steps')
     for step in tqdm(range(num_steps+1)):
         # validation
         if step % validate_every == 0:
@@ -666,5 +678,5 @@ if __name__ == '__main__':
     main(vars(parser.parse_args()))
 
 # python3 imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
-# python3 imitate_episodes.py --task_name stir-act --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
-# python3 imitate_episodes.py --task_name stir-openlid --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+#WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
+#WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-openlid --ckpt_dir ACT_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0
