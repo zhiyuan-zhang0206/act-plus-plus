@@ -6,7 +6,7 @@ import logging
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     class WarningCaptureHandler(absl_logging.PythonHandler):
         def emit(self, record):
@@ -400,11 +400,12 @@ def main(args):
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        episode_len = RENDER_START_FRAME + frame_interval * 19
+        episode_len = MODEL_POLICY_START_FRAME + frame_interval * 24
 
         policy = script_policy
         try:
-            for step in trange(episode_len):
+            progress_bar = trange(episode_len)
+            for step in progress_bar:
                 step += 1
                 if 1<=step < RENDER_START_FRAME:
                     env_q.task.set_render_state(False)
@@ -413,7 +414,8 @@ def main(args):
                         env_q.task.set_render_state(True)
                     else:
                         env_q.task.set_render_state(False)
-
+                if step == MODEL_POLICY_START_FRAME:
+                    logger.info(f'Model policy start frame: {step}.')
                 if step >= MODEL_POLICY_START_FRAME:
                     action_model = model_policy(ts_q)
                     action_script = script_policy(ts_q)
@@ -438,7 +440,7 @@ def main(args):
                     # logger.debug(f'action script: {action_script}')
                     # logger.debug(f'action model: {action_model}')
                     # logger.debug(f'action observed: {action_observed}')
-           
+                progress_bar.set_postfix({'reward': ts_q.reward})
         except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
             failed_times += 1
             logger.error(f'Failed to run episode {episode_idx+1}, error: {e}')
