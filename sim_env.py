@@ -247,7 +247,7 @@ class TransferCubeTask(BimanualViperXTask):
         touch_right_gripper = tuple(sorted(["cube", "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs
         touch_left_gripper = tuple(sorted(["cube", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
                              
-        reward = int(touch_left_gripper) + int(not touch_right_gripper)
+        reward = int(not touch_left_gripper) + int(touch_right_gripper)
 
         return reward
 

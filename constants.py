@@ -28,7 +28,7 @@ SIM_TASK_CONFIGS = {
     'openlid': {
         'dataset_dir': DATA_DIR + '/openlid',
         'num_episodes': 50,
-        'episode_len': 450,
+        'episode_len': 400,
         'camera_names': [
                          'left_angle', 'right_angle']
     },

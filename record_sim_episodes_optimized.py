@@ -104,7 +104,8 @@ def main(args):
             plt_img = ax.imshow(assemble_image_for_oncreen_render(ts_q))
             plt.ion()
         try:
-            for step in trange(episode_len):
+            progress_bar = trange(episode_len)
+            for step in progress_bar:
                 if onscreen_render:
                     plt_img.set_data(assemble_image_for_oncreen_render(ts_q))
                     plt.pause(0.0001)
@@ -126,6 +127,7 @@ def main(args):
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
+                progress_bar.set_postfix({'reward': ts_q.reward})
         except dm_control.rl.control.PhysicsError:
             logger.info('Physics error, continue.')
             plt.close()
