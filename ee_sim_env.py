@@ -8,7 +8,7 @@ from constants import PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN
 from constants import PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN
 
-from utils import sample_box_pose, sample_insertion_pose, sample_stir_pose, sample_openlid_pose
+from utils import sample_box_pose, sample_insertion_pose, sample_stir_pose, sample_openlid_pose, sample_transfercube_pose
 from dm_control import mujoco
 from dm_control.rl import control
 from dm_control.suite import base
@@ -61,6 +61,12 @@ def make_ee_sim_env(task_name):
         # physics.model.opt.timestep = 0.001  # Decrease physics timestep
         # physics.model.opt.iterations = 100 
         task = OpenLidEETask(random=False)
+        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+                                    n_sub_steps=None, flat_observation=False)
+    elif task_name == 'transfercube':
+        xml_path = os.path.join(XML_DIR, f'bimanual_viperx_ee_transfercube.xml')
+        physics = mujoco.Physics.from_xml_path(xml_path)
+        task = TransferCubeEETask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                     n_sub_steps=None, flat_observation=False)
     else:
@@ -253,49 +259,41 @@ class BimanualViperXEETask(base.Task):
 class TransferCubeEETask(BimanualViperXEETask):
     def __init__(self, random=None):
         super().__init__(random=random)
-        self.max_reward = 4
+        self.max_reward = 2
+        self.objects_start_pose = sample_transfercube_pose()
 
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
-        self.initialize_robots(physics)
-        # randomize box position
-        cube_pose = sample_box_pose()
-        box_start_idx = physics.model.name2id('red_box_joint', 'joint')
-        np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
-        # print(f"randomized cube position to {cube_position}")
+        self.initialize_robots(physics, close_width=0.044)
+        
+        cube_pose = self.objects_start_pose[0:7]
+        id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky
 
+        cube_start_id = physics.model.name2id('cube_joint', 'joint')
+        cube_start_idx = id2index(cube_start_id)
+        np.copyto(physics.data.qpos[cube_start_idx : cube_start_idx + 7], cube_pose)
+        dummy_pose = self.objects_start_pose[7:14]
+        dummy_start_id = physics.model.name2id('dummy_joint', 'joint')
+        dummy_start_idx = id2index(dummy_start_id)
+        np.copyto(physics.data.qpos[dummy_start_idx : dummy_start_idx + 7], dummy_pose)
+        object_info = {'object_num':2, 
+                       'object_poses':np.concatenate([cube_pose, dummy_pose])}
+        self.object_info = object_info
         super().initialize_episode(physics)
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[16:]
+        id2index = lambda j_id: 16 + (j_id - 16) * 7 # first 16 is robot qpos, 7 is pose dim # hacky
+        cube_start_id = physics.model.name2id('cube_joint', 'joint')
+        cube_start_idx = id2index(cube_start_id)
+
+        cube_pose = physics.data.qpos[cube_start_idx : cube_start_idx + 7].copy()
+
+        env_state = np.concatenate([cube_pose])
         return env_state
 
     def get_reward(self, physics):
-        # return whether left gripper is holding the box
-        all_contact_pairs = []
-        for i_contact in range(physics.data.ncon):
-            id_geom_1 = physics.data.contact[i_contact].geom1
-            id_geom_2 = physics.data.contact[i_contact].geom2
-            name_geom_1 = physics.model.id2name(id_geom_1, 'geom')
-            name_geom_2 = physics.model.id2name(id_geom_2, 'geom')
-            contact_pair = (name_geom_1, name_geom_2)
-            all_contact_pairs.append(contact_pair)
-
-        touch_left_gripper = ("red_box", "vx300s_left/10_left_gripper_finger") in all_contact_pairs
-        touch_right_gripper = ("red_box", "vx300s_right/10_right_gripper_finger") in all_contact_pairs
-        touch_table = ("red_box", "table") in all_contact_pairs
-
-        reward = 0
-        if touch_right_gripper:
-            reward = 1
-        if touch_right_gripper and not touch_table: # lifted
-            reward = 2
-        if touch_left_gripper: # attempted transfer
-            reward = 3
-        if touch_left_gripper and not touch_table: # successful transfer
-            reward = 4
-        return reward
+        return 4
 
 
 class InsertionEETask(BimanualViperXEETask):

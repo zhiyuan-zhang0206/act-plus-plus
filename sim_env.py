@@ -59,6 +59,12 @@ def make_sim_env(task_name, object_info:dict=None)->control.Environment:
         task = OpenLidTask(random=False, object_info=object_info)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
+    elif task_name == 'transfercube':
+        xml_path = os.path.join(XML_DIR, f'bimanual_viperx_transfercube.xml')
+        physics = mujoco.Physics.from_xml_path(xml_path)
+        task = TransferCubeTask(random=False, object_info=object_info)
+        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+                                  n_sub_steps=None, flat_observation=False)
     else:
         raise NotImplementedError
     return env
@@ -148,54 +154,6 @@ class BimanualViperXTask(base.Task):
         raise NotImplementedError
 
 
-class TransferCubeTask(BimanualViperXTask):
-    def __init__(self, random=None):
-        super().__init__(random=random)
-        self.max_reward = 4
-
-    def initialize_episode(self, physics):
-        """Sets the state of the environment at the start of each episode."""
-        # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
-        # reset qpos, control and box position
-        with physics.reset_context():
-            physics.named.data.qpos[:16] = START_ARM_POSE
-            np.copyto(physics.data.ctrl, START_ARM_POSE)
-            assert BOX_POSE[0] is not None
-            physics.named.data.qpos[-7:] = BOX_POSE[0]
-            # print(f"{BOX_POSE=}")
-        super().initialize_episode(physics)
-
-    @staticmethod
-    def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[16:]
-        return env_state
-
-    def get_reward(self, physics):
-        # return whether left gripper is holding the box
-        all_contact_pairs = []
-        for i_contact in range(physics.data.ncon):
-            id_geom_1 = physics.data.contact[i_contact].geom1
-            id_geom_2 = physics.data.contact[i_contact].geom2
-            name_geom_1 = physics.model.id2name(id_geom_1, 'geom')
-            name_geom_2 = physics.model.id2name(id_geom_2, 'geom')
-            contact_pair = (name_geom_1, name_geom_2)
-            all_contact_pairs.append(contact_pair)
-
-        touch_left_gripper = ("red_box", "vx300s_left/10_left_gripper_finger") in all_contact_pairs
-        touch_right_gripper = ("red_box", "vx300s_right/10_right_gripper_finger") in all_contact_pairs
-        touch_table = ("red_box", "table") in all_contact_pairs
-
-        reward = 0
-        if touch_right_gripper:
-            reward = 1
-        if touch_right_gripper and not touch_table: # lifted
-            reward = 2
-        if touch_left_gripper: # attempted transfer
-            reward = 3
-        if touch_left_gripper and not touch_table: # successful transfer
-            reward = 4
-        return reward
-
 
 class InsertionTask(BimanualViperXTask):
     def __init__(self, random=None):
@@ -258,6 +216,42 @@ class InsertionTask(BimanualViperXTask):
             reward = 4
         return reward
 
+class TransferCubeTask(BimanualViperXTask):
+    def __init__(self, random=None, object_info:dict=None):
+        super().__init__(random=random)
+        self.max_reward = 2
+        self.object_info = object_info
+
+    def initialize_episode(self, physics):
+        """Sets the state of the environment at the start of each episode."""
+        # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
+        # reset qpos, control and box position
+        with physics.reset_context():
+            physics.named.data.qpos[:16] = START_ARM_POSE
+            np.copyto(physics.data.ctrl, START_ARM_POSE)
+            physics.named.data.qpos[-7*self.object_info['object_num']:] = self.object_info['object_poses']
+            # assert BOX_POSE[0] is not None
+            # physics.named.data.qpos[-7*2:] = BOX_POSE[0] # two objects
+            # print(f"{BOX_POSE=}")
+        super().initialize_episode(physics)
+
+    @staticmethod
+    def get_env_state(physics):
+        env_state = physics.data.qpos.copy()[16:]
+        return env_state
+
+    def get_reward(self, physics):
+        # return 4
+        all_contact_pairs = get_contact_pairs(physics)
+
+        touch_right_gripper = tuple(sorted(["cube", "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs
+        touch_left_gripper = tuple(sorted(["cube", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
+                             
+        reward = int(touch_left_gripper) + int(not touch_right_gripper)
+
+        return reward
+
+
 # from ee_sim_env import get_qpos_ik
 class StirTask(BimanualViperXTask):
     def __init__(self, random=None, object_info:dict=None):
@@ -284,8 +278,6 @@ class StirTask(BimanualViperXTask):
         return env_state
 
     def get_reward(self, physics):
-        # return whether peg touches the pin
-        # return 4
         all_contact_pairs = get_contact_pairs(physics)
 
         touch_right_gripper = tuple(sorted(["spoon_handle_collision", "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs

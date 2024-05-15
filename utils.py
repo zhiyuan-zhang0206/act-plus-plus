@@ -324,6 +324,12 @@ def postprocess_base_action(base_action):
 
 ### env utils
 
+def sample_transfercube_pose():
+    cube_position = np.array([0, 0.5, 0.05])
+    cube_quat = np.array([1, 0, 0, 0])
+    dummy_pose = np.array([0, 0, 0, 1, 0, 0, 0])
+    return np.concatenate([cube_position, cube_quat, dummy_pose])
+
 def sample_openlid_pose():
     x_range = [0.0, 0.]
     y_range = [0.5, 0.5]

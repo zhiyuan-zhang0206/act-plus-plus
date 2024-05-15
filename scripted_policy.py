@@ -270,7 +270,7 @@ class StirPolicy(BasePolicy):
         self.log_random_values()
 
 class OpenLidPolicy(BasePolicy):
-    language_instruction :str = 'open the lid of the cup' # 'use spoon to stir coffee'
+    language_instruction :str = 'open the lid of the cup'
     def generate_trajectory(self, ts_first, random_values:list=None):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
@@ -340,6 +340,72 @@ class OpenLidPolicy(BasePolicy):
         self.random_values = random_values
         self.sanity_check_trajectories()
         self.log_random_values()
+
+class TransferCubePolicy(BasePolicy):
+    language_instruction :str = 'transfer the cube from the left hand to the right hand'
+    def generate_trajectory(self, ts_first, random_values:list=None):
+        self.trajectory_generated = True
+        init_mocap_pose_left = ts_first.observation['mocap_pose_left']
+        init_mocap_pose_right = ts_first.observation['mocap_pose_right']
+        left_initial_loc = init_mocap_pose_left[:3]
+        right_initial_loc = init_mocap_pose_right[:3]
+        cube_info = np.array(ts_first.observation['env_state'])[:7]
+        cube_xyz = cube_info[:3].copy()
+        cube_xyz[2] = 0
+        # cup_quat = cup_info[3:]
+
+        left_initial_quat = Quaternion(np.array([1, 0 , 0, 0]))
+
+        if random_values is None:
+            meet_xyz = cube_xyz.copy() # + np.random.uniform(-0.1, 0.1, 3)
+            meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
+            pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
+            pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
+            # left_hand_tilt_angle = np.random.uniform(0, 10)
+            # left_hand_tilt_angle = 5
+            random_values = {
+                "meet_xyz": meet_xyz,
+                "pre_meet_left": pre_meet_left,
+                'pre_meet_right': pre_meet_right,
+            }
+        else:
+            logger.info(f"Using given random values.")
+        
+        # left_hold_quaternion = left_initial_quat * Quaternion(axis=[0, 1, 0], angle=np.deg2rad(left_hand_tilt_angle))
+        self.left_trajectory = [
+            {"t": 0,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            # {"t": 400,    "xyz": left_initial_loc,                            "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 10,  "xyz": cube_xyz +  np.array(  [-0.03, 0.0, 0.2]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 25,  "xyz": cube_xyz + np.array(  [0.0, 0.0, 0.03]),        "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 40,  "xyz": cube_xyz + np.array(  [0.06, 0.0, 0.03]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 55,  "xyz": cube_xyz +   np.array([0.06, 0,   0.03]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            # {"t": 150,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            # {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 350,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 1}, 
+            {"t": 400,  "xyz": random_values['meet_xyz'] + np.array([-0.03, 0.0, 0.0]),    "quat": left_initial_quat.elements,            "gripper": 1}, 
+            # {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 1}, 
+        ]
+
+        right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
+        # vertical_quaternion = Quaternion(np.array([0, -0.70710678, 0, 0.70710678]))
+        vertical_quaternion = right_initial_quat * Quaternion(axis=[1.0, 0.0, 0.0], degrees=-90)
+        self.right_trajectory = [
+            {"t": 0,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
+            # {"t": 400,   "xyz": right_initial_loc,            "quat": right_initial_quat.elements,          "gripper": 1}, # sleep
+            {"t": 20, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
+            {"t": 260, "xyz":  random_values['meet_xyz'] + np.array([0.01, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 310, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.00, -0.02]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
+        ]
+        self.random_values = random_values
+        self.sanity_check_trajectories()
+        self.log_random_values()
+
 
 def test_policy(task_name):
     # example rolling out pick_and_transfer policy

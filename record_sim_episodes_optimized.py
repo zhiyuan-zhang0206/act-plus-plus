@@ -14,7 +14,7 @@ import dm_control
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env
-from scripted_policy import StirPolicy, OpenLidPolicy
+from scripted_policy import StirPolicy, OpenLidPolicy, TransferCubePolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
 from tqdm import trange
@@ -36,6 +36,7 @@ def configure_logging():
 task_name_to_script_policy_cls = {
     'stir': StirPolicy,
     'openlid': OpenLidPolicy,
+    'transfercube': TransferCubePolicy
 }
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
@@ -252,4 +253,4 @@ if __name__ == '__main__':
 # python visualize_episodes.py --dataset_dir generated_data/openlid
 
 # python record_sim_episodes_optimized.py --task_name openlid --dataset_dir generated_data/ --onscreen_render --render_start 1 --render_interval 1
-
+# python record_sim_episodes_optimized.py --task_name transfercube --dataset_dir generated_data/transfercube --onscreen_render --render_start 1 --render_interval 1

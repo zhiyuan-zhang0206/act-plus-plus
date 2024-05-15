@@ -1,0 +1,9 @@
+<mujoco>
+    <worldbody>
+        <body name="dummy" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
+            <geom type="box" name="dummy" pos="0 0 0.01" size="0.025 0.025 0.025" rgba="1 0.078 0.576 0.1" conaffinity="0" contype="0"/>
+            <joint name="dummy_joint" type="free"/>
+            <inertial pos="0 0 0" mass="0.005" diaginertia="0.002 0.002 0.002" />
+        </body>
+    </worldbody>
+</mujoco>
