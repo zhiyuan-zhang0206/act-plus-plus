@@ -16,7 +16,7 @@ from einops import rearrange
 import wandb
 import time
 from torchvision import transforms
-from scripted_policy import StirPolicy, OpenLidPolicy
+from scripted_policy import StirPolicy, OpenLidPolicy, TransferCubePolicy
 from constants import FPS
 from constants import PUPPET_GRIPPER_JOINT_OPEN
 from utils import load_data # data functions
@@ -56,14 +56,11 @@ def main(args):
     resume_ckpt_path = args['resume_ckpt_path']
 
     # get task parameters
-    is_sim = task_name[:4] == 'sim_'
+    # is_sim = task_name[:4] == 'sim_'
     is_sim = True # for this graduation project always True
     if is_sim or task_name == 'all':
         from constants import SIM_TASK_CONFIGS
         task_config = SIM_TASK_CONFIGS[task_name]
-    else:
-        from aloha_scripts.constants import TASK_CONFIGS
-        task_config = TASK_CONFIGS[task_name]
     dataset_dir = task_config['dataset_dir']
     # num_episodes = task_config['num_episodes']
     episode_len = task_config['episode_len']
@@ -141,7 +138,6 @@ def main(args):
         'seed': args['seed'],
         'temporal_agg': args['temporal_agg'],
         'camera_names': camera_names,
-        'real_robot': not is_sim,
         'load_pretrain': args['load_pretrain'],
         'actuator_config': actuator_config,
     }
@@ -188,10 +184,6 @@ def main(args):
 def make_policy(policy_class, policy_config):
     if policy_class == 'ACT':
         policy = ACTPolicy(policy_config)
-    elif policy_class == 'CNNMLP':
-        policy = CNNMLPPolicy(policy_config)
-    elif policy_class == 'Diffusion':
-        policy = DiffusionPolicy(policy_config)
     else:
         raise NotImplementedError
     return policy
@@ -233,6 +225,7 @@ def get_image(ts, camera_names, rand_crop_resize=False):
 TASK_NAME_TO_SCRIPT_POLICY_CLASS = {
     'stir-act': StirPolicy,
     'openlid-act': OpenLidPolicy,
+    'transfercube-act': TransferCubePolicy,
 }
 SCRIPT_POLICY_EXECUTION_FRAME_NUM = 200
 
@@ -240,7 +233,6 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     set_seed(1000)
     ckpt_dir = config['ckpt_dir']
     state_dim = config['state_dim']
-    real_robot = config['real_robot']
     policy_class = config['policy_class']
     onscreen_render = config['onscreen_render']
     policy_config = config['policy_config']
@@ -305,12 +297,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         post_process = lambda a: a * stats['action_std'] + stats['action_mean']
 
     # load environment
-    if real_robot:
-        from aloha_scripts.robot_utils import move_grippers # requires aloha
-        from aloha_scripts.real_env import make_real_env # requires aloha
-        env = make_real_env(init_node=True, setup_robots=True, setup_base=True)
-        env_max_reward = 0
-    else:
+    if True:
         from sim_env import make_sim_env
         from ee_sim_env import make_ee_sim_env
         
@@ -320,9 +307,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     if temporal_agg:
         query_frequency = 1
         num_queries = policy_config['num_queries']
-    if real_robot:
-        BASE_DELAY = 13
-        query_frequency -= BASE_DELAY
+
 
     max_timesteps = int(max_timesteps * 1) # may increase for real-world tasks
 
@@ -426,8 +411,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                                 all_actions = policy(qpos, curr_image)
                             # if use_actuator_net:
                             #     collect_base_action(all_actions, norm_episode_all_base_actions)
-                            if real_robot:
-                                all_actions = torch.cat([all_actions[:, :-BASE_DELAY, :-2], all_actions[:, BASE_DELAY:, -2:]], dim=2)
+                            
                         if temporal_agg:
                             all_time_actions[[t], t:t+num_queries] = all_actions
                             actions_for_curr_step = all_time_actions[:, t]
@@ -446,8 +430,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                         all_actions = policy(qpos, curr_image)
                         # if use_actuator_net:
                         #     collect_base_action(all_actions, norm_episode_all_base_actions)
-                        if real_robot:
-                            all_actions = torch.cat([all_actions[:, :-BASE_DELAY, :-2], all_actions[:, BASE_DELAY:, -2:]], dim=2)
+                        
                     raw_action = all_actions[:, t % query_frequency]
                 elif config['policy_class'] == "CNNMLP":
                     raw_action = policy(qpos, curr_image)
@@ -471,9 +454,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
 
                 ### step the environment
                 time5 = time.time()
-                if real_robot:
-                    ts = env.step(target_qpos, base_action)
-                else:
+                if True:
                     ts = env.step(target_qpos)
                 ### for visualization
                 qpos_list.append(qpos_numpy)
@@ -486,22 +467,6 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
                     culmulated_delay += (duration - DT)
 
             print(f'Avg fps {max_timesteps / (time.time() - time0)}')
-            plt.close()
-        if real_robot:
-            move_grippers([env.puppet_bot_left, env.puppet_bot_right], [PUPPET_GRIPPER_JOINT_OPEN] * 2, move_time=0.5)  # open
-            # save qpos_history_raw
-            log_id = get_auto_index(ckpt_dir)
-            np.save(os.path.join(ckpt_dir, f'qpos_{log_id}.npy'), qpos_history_raw)
-            plt.figure(figsize=(10, 20))
-            # plot qpos_history_raw for each qpos dim using subplots
-            for i in range(state_dim):
-                plt.subplot(state_dim, 1, i+1)
-                plt.plot(qpos_history_raw[:, i])
-                # remove x axis
-                if i != state_dim - 1:
-                    plt.xticks([])
-            plt.tight_layout()
-            plt.savefig(os.path.join(ckpt_dir, f'qpos_{log_id}.png'))
             plt.close()
 
 

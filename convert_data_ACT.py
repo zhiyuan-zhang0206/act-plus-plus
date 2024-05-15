@@ -42,7 +42,7 @@ def main():
 
             paths = sorted(list(from_directory.glob('*.hdf5')))
 
-            for i, p in tqdm(list(enumerate(paths))):
+            for i, p in tqdm(list(enumerate(paths)), desc=to_directory.stem):
                 process_data(p, to_directory)
 
 if __name__ == '__main__':

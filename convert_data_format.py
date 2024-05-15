@@ -8,7 +8,7 @@ import h5py
 from pyquaternion import Quaternion
 START_FRAME = 200
 START_FRAME -= 1
-TIME_INTERVAL = 5
+TIME_INTERVAL = 10
 RIGHT_HAND_RELATIVE = True
 language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
@@ -38,8 +38,8 @@ def wxyz_to_xyzw(quat):
     else:
         return np.array([quat[1], quat[2], quat[3], quat[0]])
 
-def process_data(path, save_dir, debug=False, absolute = False, right_hand_relative = False):
-    save_dir.mkdir(exist_ok=True, parents=True)
+def process_data(path, debug=False, absolute = False, right_hand_relative = False):
+    # save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
         left_pose = root['/observations/left_pose'][()]
@@ -109,7 +109,7 @@ def process_data(path, save_dir, debug=False, absolute = False, right_hand_relat
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
     
-    save_path = save_dir / path.stem
+    # save_path = save_dir / path.stem
     data = {
         'world_vector_left': world_vector_left,
         'rotation_delta_left': rotation_delta_left, #left_aa_diff,
@@ -133,7 +133,8 @@ def process_data(path, save_dir, debug=False, absolute = False, right_hand_relat
         for k, v in data.items():
             if isinstance(v, np.ndarray):
                 print(k, v.shape)
-    np.save(save_path, data)
+    # np.save(save_path, data)
+    return data
 
 def test():
     hdf5_path = '/home/users/ghc/zzy/act-plus-plus/generated_data/stir/episode_0005.hdf5'
@@ -166,42 +167,36 @@ def str2bool(v):
 
 def main(args):
 
-    hdf5_directory = Path(__file__).parent / 'generated_data' / 'stir'
-    save_dir:Path = hdf5_directory.parent / 'processed_data'
-    print(f'saving to {save_dir}')
-    paths = sorted(list(hdf5_directory.glob('*.hdf5')))
+    hdf5_directory = Path(__file__).parent / 'generated_data'
+
+    paths = []
+    for path in sorted(list(hdf5_directory.rglob('*.hdf5'))):
+        # if 'stir' in path.stem:
+        if 'ACT' in path.as_posix():
+            continue
+        paths.append(path)
     test = False
     if test:
         paths = paths[1:3]
-    # process_data(paths[0], save_dir, debug=True)
+    datas = []
     for i, p in tqdm(list(enumerate(paths))):
-        process_data(p, save_dir, debug= i==0, absolute=args.absolute, right_hand_relative=args.right_hand_relative)
+        data = process_data(p, debug= i==0, absolute=args.absolute, right_hand_relative=args.right_hand_relative)
+        datas.append(data)
     print(f"data ranges: {LOCATION_MIN=}, {LOCATION_MAX=}, {ROTATION_MIN=}, {ROTATION_MAX=}")
-    # return
-    # select 10% and put into 'test', else 'train'
-    train_path = save_dir / 'train'
+
+    save_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/data')
+    save_dir.mkdir(exist_ok=True, parents=True)
     test_path = save_dir / 'test'
-    train_path.mkdir(exist_ok=True, parents=True)
+    train_path = save_dir / 'train'
     test_path.mkdir(exist_ok=True, parents=True)
-    for i, p in enumerate(save_dir.glob('*.npy')):
+    train_path.mkdir(exist_ok=True, parents=True)
+    for i, data in enumerate(datas):
+        file_name = f'episode_{i:04d}.npy'
         if i % 10 == 0:
-            p.rename(test_path / p.name)
+            np.save(test_path / file_name, data)
         else:
-            p.rename(train_path / p.name)
-    # all move to tf datasets
-    ds_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/data')
-    ds_dir.mkdir(exist_ok=True, parents=True)
-    for p in train_path.glob('*.npy'):
-        (ds_dir/'train').mkdir(exist_ok=True, parents=True)
-        p.rename(ds_dir / 'train' / p.name)
-    for p in test_path.glob('*.npy'):
-        (ds_dir/'test').mkdir(exist_ok=True, parents=True)
-        p.rename(ds_dir / 'test' / p.name)
-    # clear save path directories
-    for p in save_dir.rglob('*'):
-        if p.is_dir():
-            p.rmdir()
-    save_dir.rmdir()
+            np.save(train_path / file_name, data)
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--right_hand_relative', type=str2bool, required=True)
