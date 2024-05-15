@@ -8,7 +8,7 @@ import h5py
 from pyquaternion import Quaternion
 START_FRAME = 200
 START_FRAME -= 1
-TIME_INTERVAL = 10
+TIME_INTERVAL = 5
 RIGHT_HAND_RELATIVE = True
 language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()

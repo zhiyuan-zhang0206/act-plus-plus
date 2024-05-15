@@ -49,4 +49,3 @@ if __name__ == '__main__':
     main()
     # test()
 
-# python convert_data_format.py --right_hand_relative False --absolute True

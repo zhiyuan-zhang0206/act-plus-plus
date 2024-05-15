@@ -6,7 +6,7 @@ import logging
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     class WarningCaptureHandler(absl_logging.PythonHandler):
         def emit(self, record):
@@ -103,8 +103,8 @@ class BimanualModelPolicy:
         self.right_pose = None
         # return
         import sys
-        sys.path.append(Path(__file__).parent.parent.as_posix())
-        sys.path.append((Path(__file__).parent.parent / 'open_x_embodiment-main').as_posix())
+        sys.path.append(Path(__file__).absolute().parent.parent.absolute().as_posix())
+        sys.path.append((Path(__file__).absolute().parent.parent / 'open_x_embodiment-main').as_posix())
         rtx = importlib.import_module('open_x_embodiment-main' )
         self.batch_size = 19
         dataset_data_path = Path(__file__).parent / 'dataset_data.pkl'
@@ -193,28 +193,32 @@ class BimanualModelPolicy:
         if self.absolute:
             new_location = action[:3]
             new_rpy = action[3:6]
+            new_gripper_action = action[6:7]
             new_quaternion = R.from_euler('zyx', new_rpy).as_quat()
             new_quaternion = new_quaternion[[3,0,1,2]]
-            new_pose = np.concatenate([new_location, new_quaternion])
+            new_pose = np.concatenate([new_location, new_quaternion, new_gripper_action])
             return new_pose
         else:
             if self.right_hand_relative and mode == 'right':
+                raise NotImplementedError
                 assert left_pose is not None
                 right_location = left_pose[:3] + action[:3]
                 right_quaternion = R.from_quat(pose[[4,5,6,3]]) * R.from_quat(left_pose[[4,5,6,3]]).inv()
                 right_quaternion = right_quaternion[[3,0,1,2]]
-                new_pose = np.concatenate([right_location, right_quaternion])
+                right_gripper_action = action[6]
+                new_pose = np.concatenate([right_location, right_quaternion, right_gripper_action])
             else:
                 new_location = pose[:3] + action[:3]
                 rpy_delta = R.from_euler('zyx', action[3:6])
                 current_rpy = R.from_quat(pose[[4,5,6,3]])
                 new_quaternion = (rpy_delta * current_rpy).as_quat()
                 new_quaternion = new_quaternion[[3,0,1,2]]
-                new_pose = np.concatenate([new_location, new_quaternion])
+                new_gripper_action = action[6]
+                new_pose = np.concatenate([new_location, new_quaternion, new_gripper_action])
                 return new_pose
     
     def generate_action_buffer(self, current_pose, new_pose):
-        margin_frame_number = 3
+        margin_frame_number = int(round(0.3 * self.frame_interval))
         assert current_pose.shape == new_pose.shape
         diff = new_pose - current_pose
         threshold = 0.08
@@ -280,12 +284,14 @@ class BimanualModelPolicy:
             if self.left_pose is None or self.always_refresh:
                 self.left_pose = observation['left_pose']
                 self.right_pose = observation['right_pose']
-            self.left_pose = left_pose_new = self._calculate_new_pose( self.left_pose, action[0][:6], 'left')
-            self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1][:6], 'right', left_pose=self.left_pose)
-            left_gripper_new = np.zeros((1,))
-            right_gripper_new = np.zeros((1,))
+            self.left_pose = left_pose_new = self._calculate_new_pose( self.left_pose, action[0], 'left')
+            self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
+            # left_gripper_new = np.zeros((1,))
+            # right_gripper_new = np.zeros((1,))
+            left_pose_new[-1] = 0
+            right_pose_new[-1] = 0
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
-            new_pose = np.concatenate([left_pose_new,  left_gripper_new, right_pose_new, right_gripper_new])
+            new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
             self.action_buffer = self.generate_action_buffer(current_pose, new_pose)
             
@@ -394,7 +400,7 @@ def main(args):
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        episode_len = RENDER_START_FRAME + frame_interval * 18
+        episode_len = RENDER_START_FRAME + frame_interval * 19
 
         policy = script_policy
         try:
@@ -540,6 +546,6 @@ if __name__ == '__main__':
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-09_01-23-52/checkpoint_4100 --always_refresh True --absolute True --num_episodes 10
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-15_13-16-05 --always_refresh True --absolute True --num_episodes 10
 # python visualize_episodes.py 
 # python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0

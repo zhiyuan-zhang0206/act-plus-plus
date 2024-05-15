@@ -513,7 +513,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
 
         if save_episode:
-            save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
+            save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, 'videos', f'video{rollout_id}.mp4'))
 
     success_rate = np.mean(np.array(highest_rewards) == env_max_reward)
     avg_return = np.mean(episode_returns)
@@ -599,8 +599,8 @@ def train_bc(train_dataloader, val_dataloader, config):
             print(summary_string)
                 
         # evaluation
-        # if (step > 0) and (step % eval_every == 0):
-        if (step % eval_every == 0):
+        if (step > 0) and (step % eval_every == 0):
+        # if (step % eval_every == 0):
             # first save then eval
             ckpt_name = f'policy_step_{step}_seed_{seed}.ckpt'
             ckpt_path = os.path.join(ckpt_dir, ckpt_name)
