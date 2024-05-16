@@ -10,9 +10,9 @@ from pathlib import Path
 class Builder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for bimanual_zzy dataset."""
 
-    VERSION = tfds.core.Version("0.1.6")
+    VERSION = tfds.core.Version("0.1.8")
     RELEASE_NOTES = {
-        "0.1.6": "50 episodes of stir, interval 5 frame, with fixed meet position and small variation range",
+        "0.1.8": "50 episodes of transfercube, stir, and openlid, with fixed meet position and small variation range",
     }
 
     def _info(self) -> tfds.core.DatasetInfo:

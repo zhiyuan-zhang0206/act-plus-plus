@@ -316,11 +316,11 @@ class OpenLidPolicy(BasePolicy):
             {"t": 40,  "xyz": cup_xyz + np.array(  [0.06, 0.0, 0.06]),      "quat": left_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 55,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
             # {"t": 150,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
-            {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
-            {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
-            {"t": 360,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
-            {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 320,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            # {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            # {"t": 360,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
+            {"t": 450,  "xyz": random_values['meet_xyz'],    "quat": left_hold_quaternion.elements,            "gripper": 0}, 
         ]
 
         right_initial_quat = Quaternion(np.array([0, 0 , 0, -1]))
@@ -332,10 +332,10 @@ class OpenLidPolicy(BasePolicy):
             {"t": 20, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 300, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
-            {"t": 380, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
-            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0.02, 0.14]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
+            {"t": 320, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 370, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 410, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 450, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0.02, 0.14]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()
@@ -381,10 +381,10 @@ class TransferCubePolicy(BasePolicy):
             {"t": 55,  "xyz": cube_xyz +   np.array([0.06, 0,   0.03]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
             # {"t": 150,  "xyz": cup_xyz +   np.array([0.06, 0,   0.06]),      "quat": left_initial_quat.elements,            "gripper": 0}, 
             {"t": 200,  "xyz": random_values['pre_meet_left'],    "quat": left_initial_quat.elements,            "gripper": 0}, 
-            {"t": 300,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
+            {"t": 320,  "xyz": random_values['meet_xyz'],      "quat": left_initial_quat.elements,            "gripper": 0}, 
             # {"t": 330,  "xyz": random_values['meet_xyz'],      "quat": left_hold_quaternion.elements,            "gripper": 0}, 
-            {"t": 350,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 1}, 
-            {"t": 400,  "xyz": random_values['meet_xyz'] + np.array([-0.03, 0.0, 0.0]),    "quat": left_initial_quat.elements,            "gripper": 1}, 
+            {"t": 370,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 1}, 
+            {"t": 450,  "xyz": random_values['meet_xyz'] + np.array([-0.06, 0.0, 0.0]),    "quat": left_initial_quat.elements,            "gripper": 1}, 
             # {"t": 400,  "xyz": random_values['meet_xyz'],    "quat": left_initial_quat.elements,            "gripper": 1}, 
         ]
 
@@ -397,10 +397,10 @@ class TransferCubePolicy(BasePolicy):
             {"t": 20, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 260, "xyz":  random_values['meet_xyz'] + np.array([0.01, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 310, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 340, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
-            {"t": 400, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.00, -0.02]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
+            {"t": 280, "xyz":  random_values['meet_xyz'] + np.array([0.01, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 320, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 360, "xyz":  random_values['meet_xyz'] + np.array([-0.12, 0, -0.02]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 450, "xyz":  random_values['meet_xyz'] + np.array([-0.03, 0.00, -0.02]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()

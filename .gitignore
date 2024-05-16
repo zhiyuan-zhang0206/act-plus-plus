@@ -154,4 +154,4 @@ dataset_data.pkl
 debug/
 openlid_ckpt/
 stir_ckpt/
-tranfercube_ckpt/
+transfercube_ckpt/

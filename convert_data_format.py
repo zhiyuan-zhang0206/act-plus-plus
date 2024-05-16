@@ -174,6 +174,10 @@ def main(args):
         # if 'stir' in path.stem:
         if 'ACT' in path.as_posix():
             continue
+        # if 'stir' not in path.as_posix():
+        # if 'openlid' not in path.as_posix():
+        # if 'transfercube' not in path.as_posix():
+            continue
         paths.append(path)
     test = False
     if test:

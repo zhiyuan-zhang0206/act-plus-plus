@@ -18,6 +18,13 @@ SIM_TASK_CONFIGS = {
         'camera_names': [
                          'left_angle', 'right_angle']
     },
+    'transfercube-act': {
+        'dataset_dir': DATA_DIR + '/transfercube_ACT',
+        'num_episodes': 50,
+        'episode_len': 250,
+        'camera_names': [
+                         'left_angle', 'right_angle']
+    },
     'stir': {
         'dataset_dir': DATA_DIR + '/stir',
         'num_episodes': 50,
@@ -28,14 +35,14 @@ SIM_TASK_CONFIGS = {
     'openlid': {
         'dataset_dir': DATA_DIR + '/openlid',
         'num_episodes': 50,
-        'episode_len': 400,
+        'episode_len': 450,
         'camera_names': [
                          'left_angle', 'right_angle']
     },
     'transfercube':{
         'dataset_dir': DATA_DIR + '/transfercube',
         'num_episodes': 50,
-        'episode_len': 400,
+        'episode_len': 450,
         'camera_names': [
                          'left_angle', 'right_angle']
     },

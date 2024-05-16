@@ -58,7 +58,7 @@ import dm_control
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env
-from scripted_policy import StirPolicy
+from scripted_policy import StirPolicy, OpenLidPolicy, TransferCubePolicy
 from pathlib import Path
 from matplotlib import pyplot as plt
 from loguru import logger
@@ -288,8 +288,8 @@ class BimanualModelPolicy:
             self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
             # left_gripper_new = np.zeros((1,))
             # right_gripper_new = np.zeros((1,))
-            left_pose_new[-1] = 0
-            right_pose_new[-1] = 0
+            # left_pose_new[-1] = 0
+            # right_pose_new[-1] = 0
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
@@ -344,6 +344,7 @@ def main(args):
     task_name = args['task_name']
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
+    reward_threshold = args['reward_threshold']
     # always_refresh = args['always_refresh']
     render_interval = args['render_interval']
     model_ckpt_path = args['model_ckpt_path']
@@ -367,8 +368,12 @@ def main(args):
     camera_names = SIM_TASK_CONFIGS[task_name]['camera_names']
     if task_name == 'stir':
         script_policy_cls = StirPolicy
+    elif task_name == 'openlid':
+        script_policy_cls = OpenLidPolicy
+    elif task_name == 'transfercube':
+        script_policy_cls = TransferCubePolicy
     else:
-        raise 
+        raise NotImplementedError
     
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
                                        dropout_train=True, right_hand_relative=right_hand_relative, version=version,
@@ -378,9 +383,10 @@ def main(args):
 
     save_path = Path(os.path.join(save_dir, task_name, str(args['start_index'])))
     episode_idx = 0
-    failed_times_limit = 10
+    failed_times_limit = 100
     failed_times = 0
     final_rewards = []
+    episode_len = episode_len - frame_interval
     while episode_idx < num_episodes:
         if failed_times >= failed_times_limit:
             logger.error('Failed too many times, stop.')
@@ -400,8 +406,7 @@ def main(args):
         env_q = make_sim_env(task_name, object_info=object_info)
         ts_q = env_q.reset()
         episode_q = [ts_q]
-        episode_len = MODEL_POLICY_START_FRAME + frame_interval * 24
-
+        # episode_len = MODEL_POLICY_START_FRAME + frame_interval * 24
         policy = script_policy
         try:
             progress_bar = trange(episode_len)
@@ -437,8 +442,8 @@ def main(args):
                 if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0:
                     action_observed = np.concatenate([ts_q.observation['left_pose'], ts_q.observation['qpos'][6:7], ts_q.observation['right_pose'], ts_q.observation['qpos'][13:14]])
                     # diff = action_model - action_script
-                    # logger.debug(f'action script: {action_script}')
-                    # logger.debug(f'action model: {action_model}')
+                    logger.debug(f'action script: {action_script}')
+                    logger.debug(f'action model: {action_model}')
                     # logger.debug(f'action observed: {action_observed}')
                 progress_bar.set_postfix({'reward': ts_q.reward})
         except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
@@ -517,6 +522,7 @@ def main(args):
 
     logger.info(f'Final rewards: {final_rewards}')
     logger.info(f'Max final rewards: {np.max(final_rewards)}, mean final rewards: {np.mean(final_rewards)}, min final rewards: {np.min(final_rewards)}')
+    logger.info(f'Reward bigger than threshold: {np.sum(np.array(final_rewards) > reward_threshold)}')
     logger.info(f'Saved to {save_dir}')
     # logger.info(f'Success: {np.sum(success)} / {len(success)}')
 
@@ -546,8 +552,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', action='store', type=int, default=0)
     parser.add_argument('--absolute', type= str2bool, required=True)
     parser.add_argument('--render_interval', action='store', type=int, default=10)
+    parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-15_13-16-05 --always_refresh True --absolute True --num_episodes 10
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_14-37-31/checkpoint_2000 --always_refresh True --absolute True --num_episodes 10
 # python visualize_episodes.py 
 # python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0

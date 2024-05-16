@@ -107,6 +107,7 @@ def main(args):
 
 
 def save_videos(video, dt, video_path=None, save_image_instead:bool=False):
+    Path(video_path).parent.mkdir(parents=True, exist_ok=True)
     if save_image_instead:
         # take last image
         if isinstance(video, list):
