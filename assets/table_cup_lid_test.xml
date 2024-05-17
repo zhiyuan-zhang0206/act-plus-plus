@@ -1,0 +1,11 @@
+<mujoco>
+    <include file="cuplid_cup.xml" />
+    <include file="cuplid_lid.xml" />
+
+    <!-- Define a new body for the table -->
+    <worldbody>
+        <body name="table" pos="0 0 -0.01">
+            <geom type="box" size="0.2 0.2 0.01" rgba="1 1 1 1"/> <!-- White table -->
+        </body>
+    </worldbody>
+</mujoco>

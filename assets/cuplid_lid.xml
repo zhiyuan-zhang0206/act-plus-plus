@@ -1,27 +1,27 @@
 <mujoco>
     <asset>
         <mesh name="cuplid_lid" file="cuplid_lid.stl" scale="0.73 0.73 1" />
-        <mesh name="cuplid_lid_0_collision" file="cuplid_lid_edge_0.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_1_collision" file="cuplid_lid_edge_1.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_2_collision" file="cuplid_lid_edge_2.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_3_collision" file="cuplid_lid_edge_3.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_4_collision" file="cuplid_lid_edge_4.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_5_collision" file="cuplid_lid_edge_5.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_6_collision" file="cuplid_lid_edge_6.stl" scale="0.65 0.65 1" />
-        <mesh name="cuplid_lid_7_collision" file="cuplid_lid_edge_7.stl" scale="0.65 0.65 1" />
+        <mesh name="cuplid_lid_0_collision" file="cuplid_lid_edge_0.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_1_collision" file="cuplid_lid_edge_1.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_2_collision" file="cuplid_lid_edge_2.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_3_collision" file="cuplid_lid_edge_3.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_4_collision" file="cuplid_lid_edge_4.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_5_collision" file="cuplid_lid_edge_5.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_6_collision" file="cuplid_lid_edge_6.stl" scale="0.64 0.64 1" />
+        <mesh name="cuplid_lid_7_collision" file="cuplid_lid_edge_7.stl" scale="0.64 0.64 1" />
     </asset>
     <worldbody>
         <body name="cuplid_lid" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
             <geom type="mesh" name="cuplid_lid" mesh="cuplid_lid" rgba="0.3 0.3 0.3 1" contype="0" conaffinity="0" pos="0 0 -0.003"/>
             <geom name="cuplid_lid_cylinder_collision" type="cylinder" pos="0 0 0.13" size="0.04 0.005" rgba="0 1 0 0" />
-            <geom name="cuplid_lid_0_collision" type="mesh" mesh="cuplid_lid_0_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_1_collision" type="mesh" mesh="cuplid_lid_1_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_2_collision" type="mesh" mesh="cuplid_lid_2_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_3_collision" type="mesh" mesh="cuplid_lid_3_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_4_collision" type="mesh" mesh="cuplid_lid_4_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_5_collision" type="mesh" mesh="cuplid_lid_5_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_6_collision" type="mesh" mesh="cuplid_lid_6_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
-            <geom name="cuplid_lid_7_collision" type="mesh" mesh="cuplid_lid_7_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_0_collision" type="mesh" mesh="cuplid_lid_0_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_1_collision" type="mesh" mesh="cuplid_lid_1_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_2_collision" type="mesh" mesh="cuplid_lid_2_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_3_collision" type="mesh" mesh="cuplid_lid_3_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_4_collision" type="mesh" mesh="cuplid_lid_4_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_5_collision" type="mesh" mesh="cuplid_lid_5_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_6_collision" type="mesh" mesh="cuplid_lid_6_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
+            <geom name="cuplid_lid_7_collision" type="mesh" mesh="cuplid_lid_7_collision" pos="0.0 0.0 -0.007" rgba="1 0 0 0" mass="0.001" />
             <joint name="cuplid_lid_joint" type="free" />
             <inertial pos="0 0 0" mass="0.001" diaginertia="0.002 0.002 0.002" />
         </body>

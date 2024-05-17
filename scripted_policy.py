@@ -332,10 +332,11 @@ class OpenLidPolicy(BasePolicy):
             {"t": 20, "xyz":  right_initial_loc,            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 50, "xyz":  right_initial_loc + np.array([-0.1, 0, 0.0]),            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
             {"t": 200, "xyz":  random_values['pre_meet_right'],            "quat": right_initial_quat.elements,            "gripper": 1}, # sleep
-            {"t": 320, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
-            {"t": 370, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
-            {"t": 410, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.14]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
-            {"t": 450, "xyz":  random_values['meet_xyz'] + np.array([-0.06, 0.02, 0.14]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
+            {"t": 320, "xyz":  random_values['meet_xyz'] + np.array([-0.07, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 1}, # sleep
+            {"t": 360, "xyz":  random_values['meet_xyz'] + np.array([-0.07, 0, 0.07]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            # {"t": 370, "xyz":  random_values['meet_xyz'] + np.array([-0.08, 0, 0.11]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 410, "xyz":  random_values['meet_xyz'] + np.array([-0.07, 0, 0.09]),            "quat": vertical_quaternion.elements,            "gripper": 0}, # sleep
+            {"t": 450, "xyz":  random_values['meet_xyz'] + np.array([-0.05, 0, 0.11]),            "quat": vertical_quaternion.elements,          "gripper": 0}, # sleep
         ]
         self.random_values = random_values
         self.sanity_check_trajectories()
