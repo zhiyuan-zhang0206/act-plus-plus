@@ -296,7 +296,6 @@ class OpenLidPolicy(BasePolicy):
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
             # left_hand_tilt_angle = np.random.uniform(0, 10)
-            left_hand_tilt_angle = 5
             random_values = {
                 "meet_xyz": meet_xyz,
                 "pre_meet_left": pre_meet_left,
@@ -304,6 +303,7 @@ class OpenLidPolicy(BasePolicy):
             }
         else:
             logger.info(f"Using given random values.")
+        left_hand_tilt_angle = 5
         # separate_xyz = meet_xyz + np.array([0.1, 0, 0.1])
         # logger.debug(f'{cup_xyz=}')
         # logger.debug(f'{lid_xyz=}')

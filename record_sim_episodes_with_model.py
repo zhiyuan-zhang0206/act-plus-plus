@@ -106,13 +106,13 @@ class BimanualModelPolicy:
         sys.path.append(Path(__file__).absolute().parent.parent.absolute().as_posix())
         sys.path.append((Path(__file__).absolute().parent.parent / 'open_x_embodiment-main').as_posix())
         rtx = importlib.import_module('open_x_embodiment-main' )
-        self.batch_size = 19
+        self.batch_size = 24
         dataset_data_path = Path(__file__).parent / 'dataset_data.pkl'
         if dataset_data_path.exists():
             with open(dataset_data_path, 'rb') as f:
                 data = pickle.load(f)
         else:
-            train_iter = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[:1]', augmentation=False, shuffle=False, version = version).as_numpy_iterator()
+            train_iter = rtx.dataset.get_train_dataset(self.batch_size, bimanual=True, split='train[1:2]', augmentation=False, shuffle=False, version = version).as_numpy_iterator()
             data = next(train_iter)
             with open(dataset_data_path, 'wb') as f:
                 pickle.dump(data, f)
@@ -120,7 +120,7 @@ class BimanualModelPolicy:
         self.action_storage = data['action']
         index = int(data['observation']['index'][self.batch_size-1, -1])
         logger.info(f"data episode {index=}")
-        self.metadata = rtx.dataset.get_bimanual_dataset_episode_metadata()[index]
+        self.metadata = rtx.dataset.get_bimanual_dataset_episode_metadata(version = version)[index]
         
         if self.dataset_debug:
             pass
@@ -149,6 +149,7 @@ class BimanualModelPolicy:
         # debug
         # batch_action = self.policy.action_batch(self.dataset_data["observation"])
         # actions = [jax.tree_map(lambda x: x[i], batch_action) for i in range(len(self.dataset_data['observation']['image_left']))]
+        # self.predicted_actions = actions
         # actions = []
         # for i in range(len(self.dataset_data['observation']['image_left'])):
         #     # steps_copy = copy.deepcopy(self.dataset_data['observation'])
@@ -160,7 +161,12 @@ class BimanualModelPolicy:
         #     }
         #     action = self.policy.action(observation)
         #     actions.append(action)
-        # self.predicted_actions = actions
+        # self.dataset_actions = []
+        # for i in range(len(self.dataset_data['observation']['image_left'])):
+        #     action_dict = {}
+        #     for key, value in self.dataset_data['action'].items():
+        #         action_dict[key] = value[i][-1]
+        #     self.dataset_actions.append(action_dict)
 
     def set_language_instruction(self, language_instruction:str):
         logger.info(f"language_instruction: {language_instruction}")
@@ -355,7 +361,7 @@ def main(args):
     rerun_when_error = args['rerun_when_error']
     seed = args['seed']
     absolute = args['absolute']
-    temp_folder = Path(__file__).parent / 'temp'
+    temp_folder = Path(__file__).parent / 'debug'
     temp_folder.mkdir(exist_ok=True)
     random.seed(seed)
     MODEL_POLICY_START_FRAME = 200
@@ -386,7 +392,7 @@ def main(args):
     failed_times_limit = 100
     failed_times = 0
     final_rewards = []
-    episode_len = episode_len - frame_interval
+    episode_len = episode_len - frame_interval - 1 + 100
     while episode_idx < num_episodes:
         if failed_times >= failed_times_limit:
             logger.error('Failed too many times, stop.')
@@ -395,10 +401,12 @@ def main(args):
         model_policy.reset()
         script_policy = script_policy_cls()
         env_ee = make_ee_sim_env(task_name)
-        # env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
         ts_ee = env_ee.reset()
-        # script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
-        script_policy.generate_trajectory(ts_ee)
+        if os.getenv('ZZY_DEBUG') == 'True':
+            env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
+            script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
+        else:
+            script_policy.generate_trajectory(ts_ee)
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
@@ -420,10 +428,11 @@ def main(args):
                     else:
                         env_q.task.set_render_state(False)
                 if step == MODEL_POLICY_START_FRAME:
-                    logger.info(f'Model policy start frame: {step}.')
+                    # logger.info(f'Model policy start frame: {step}.')
+                    pass
                 if step >= MODEL_POLICY_START_FRAME:
                     action_model = model_policy(ts_q)
-                    action_script = script_policy(ts_q)
+                    # action_script = script_policy(ts_q)
                     action_ee = action_model
                 else:
                     action_ee = script_policy(ts_q)
@@ -432,19 +441,21 @@ def main(args):
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
-                if step >= RENDER_START_FRAME and step % frame_interval == 0:
+                if step >= RENDER_START_FRAME and step % frame_interval == 0 and os.getenv('ZZY_DEBUG') == 'True':
                     for cam_name in camera_names:
                         image = ts_q.observation['images'][cam_name]
                         image_name = f'image_{cam_name}_{step}.jpg'
                         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-                        # cv2.imwrite((temp_folder / image_name).as_posix(), image)
+                        cv2.imwrite((temp_folder / image_name).as_posix(), image)
                         
-                if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0:
+                if step>=MODEL_POLICY_START_FRAME and step % frame_interval == 0 and os.getenv('ZZY_DEBUG') == 'True':
                     action_observed = np.concatenate([ts_q.observation['left_pose'], ts_q.observation['qpos'][6:7], ts_q.observation['right_pose'], ts_q.observation['qpos'][13:14]])
                     # diff = action_model - action_script
-                    logger.debug(f'action script: {action_script}')
+                    # logger.debug(f'action script: {action_script}')
                     logger.debug(f'action model: {action_model}')
-                    # logger.debug(f'action observed: {action_observed}')
+                    # diff = action_model - action_script
+                    # logger.debug(f'action diff: {diff[0:3]}, {diff[8:11]}')
+                    logger.debug(f'action observed: {action_observed}')
                 progress_bar.set_postfix({'reward': ts_q.reward})
         except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
             failed_times += 1
@@ -555,6 +566,6 @@ if __name__ == '__main__':
     parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
     main(vars(parser.parse_args()))
 
-# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_14-37-31/checkpoint_2000 --always_refresh True --absolute True --num_episodes 10
+# python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_15-41-55/checkpoint_5800 --always_refresh True --absolute True --num_episodes 10
 # python visualize_episodes.py 
 # python visualize_episodes.py --dataset_dir ./evaluation_data/stir/0
