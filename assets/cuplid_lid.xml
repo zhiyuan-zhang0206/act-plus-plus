@@ -23,7 +23,7 @@
             <geom name="cuplid_lid_6_collision" type="mesh" mesh="cuplid_lid_6_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
             <geom name="cuplid_lid_7_collision" type="mesh" mesh="cuplid_lid_7_collision" pos="0.0 0.0 -0.003" rgba="1 0 0 0" mass="0.001" />
             <joint name="cuplid_lid_joint" type="free" />
-            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+            <inertial pos="0 0 0" mass="0.001" diaginertia="0.002 0.002 0.002" />
         </body>
     </worldbody>
 
