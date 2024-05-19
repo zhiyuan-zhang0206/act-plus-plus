@@ -38,10 +38,15 @@ def wxyz_to_xyzw(quat):
     else:
         return np.array([quat[1], quat[2], quat[3], quat[0]])
 
+language_instructions = set()
+episode_lengths = set()
 def process_data(path, debug=False, absolute = False, right_hand_relative = False):
     # save_dir.mkdir(exist_ok=True, parents=True)
     with h5py.File(path.as_posix(), 'r') as root:
         language_instruction = root.attrs['language_instruction']
+        language_instructions.add(language_instruction)
+        episode_length = len(root['/observations/left_pose'])
+        episode_lengths.add(episode_length)
         left_pose = root['/observations/left_pose'][()]
         right_pose = root['/observations/right_pose'][()]
         left_image = root['/observations/images/left_angle'][()]
@@ -200,6 +205,8 @@ def main(args):
             np.save(test_path / file_name, data)
         else:
             np.save(train_path / file_name, data)
+    print(f"language instructions: {language_instructions}")
+    print(f"episode lengths: {episode_lengths}")
 
 if __name__ == '__main__':
     parser = ArgumentParser()

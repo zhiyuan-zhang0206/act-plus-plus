@@ -76,8 +76,15 @@ class TooLowReward(Exception):
 class RewardFilter:
     def __call__(self, task_name:str, step:int, reward:float):
         if task_name == 'stir':
-            if step >=200:
-                if reward < 2:
+            pass
+            # if reward < 1.9 and step>= 200:
+            #     raise TooLowReward(f"Reward is too low: {reward}")
+            # if step >=200:
+            #     if reward < 2:
+            #         raise TooLowReward(f"Reward is too low: {reward}")
+        elif task_name == 'transfercube':
+            if step >=450:
+                if reward < 1:
                     raise TooLowReward(f"Reward is too low: {reward}")
 
 class FailedToConverge(Exception):
