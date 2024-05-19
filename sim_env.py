@@ -351,7 +351,13 @@ class OpenLidTask(BimanualViperXTask):
         touch_right_gripper = any([tuple(sorted([lid_name, "vx300s_right/10_right_gripper_finger"])) in all_contact_pairs for lid_name in lid_collision_names])
         touch_right_gripper |= any([tuple(sorted([lid_name, "vx300s_right/10_left_gripper_finger"])) in all_contact_pairs for lid_name in lid_collision_names])
         # print(touch_right_gripper)
-        touch_left_gripper = tuple(sorted(["cuplid_cup_collision", "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs     
+        cup_collision_names = [
+            "cuplid_cup_collision",
+            "cuplid_cup_collision_1",
+            "cuplid_cup_collision_2",
+        ]
+        touch_left_gripper = any([tuple(sorted([cup_name, "vx300s_left/10_left_gripper_finger"])) in all_contact_pairs for cup_name in cup_collision_names])
+        touch_right_gripper |= any([tuple(sorted([cup_name, "vx300s_left/10_right_gripper_finger"])) in all_contact_pairs for cup_name in cup_collision_names])
         reward += int(touch_left_gripper)
         reward += int(touch_right_gripper)
         object_pose = physics.data.qpos.copy()[16:]
