@@ -8,6 +8,7 @@ if __name__ == '__main__':
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
     os.environ['CUDA_VISIBLE_DEVICES'] = '2'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.60'
     class WarningCaptureHandler(absl_logging.PythonHandler):
         def emit(self, record):
             msg = self.format(record)
