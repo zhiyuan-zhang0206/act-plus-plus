@@ -79,7 +79,7 @@ class BasePolicy:
         right_start_times = [step['t'] for step in self.right_trajectory]
         assert left_start_times[0] == right_start_times[0], "Left and right arm trajectories must start at the same time."
         assert left_start_times[-1] == right_start_times[-1], "Left and right arm trajectories must end at the same time."
-        logger.info(f"Trajectories for both arms start at time {left_start_times[0]} and end at time {left_start_times[-1]}")
+        # logger.info(f"Trajectories for both arms start at time {left_start_times[0]} and end at time {left_start_times[-1]}")
         for i in range(len(self.left_trajectory)-1):
             assert self.left_trajectory[i]['t'] < self.left_trajectory[i+1]['t'], "Left trajectory timestep must be monotonically increasing."
         for i in range(len(self.right_trajectory)-1):
@@ -87,7 +87,8 @@ class BasePolicy:
 
     def log_random_values(self):
         for k, v in self.random_values.items():
-            logger.info(f'Random value for {k}: {v}')
+            # logger.debug(f'Random value for {k}: {v}')
+            pass
 
 class PickAndTransferPolicy(BasePolicy):
 
@@ -174,7 +175,7 @@ class InsertionPolicy(BasePolicy):
         ]
 
 class StirPolicy(BasePolicy):
-    language_instruction :str = 'put spoon into cup' # 'use spoon to stir coffee'
+    language_instruction :str = 'use the spoon to stir in the cup'
     def generate_trajectory(self, ts_first, random_values:list=None):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']

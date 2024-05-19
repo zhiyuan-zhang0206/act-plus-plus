@@ -25,7 +25,7 @@ if __name__ == '__main__':
 import tensorflow as tf
 import jax
 import pickle
-from typing import Literal
+from typing import Any, Literal
 import importlib
 import warnings
 from io import StringIO
@@ -69,10 +69,24 @@ from contextlib import redirect_stdout, redirect_stderr
 import io
 from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
 logger.info(f'constants: {WORLD_VECTOR_MAX=}, {ROTATION_MAX=}, {WORLD_VECTOR_MIN=}, {ROTATION_MIN=}')
+
+class TooLowReward(Exception):
+    pass
+
+class RewardFilter:
+    def __call__(self, task_name:str, step:int, reward:float):
+        if task_name == 'stir':
+            if step >=200:
+                if reward < 2:
+                    raise TooLowReward(f"Reward is too low: {reward}")
+
 class FailedToConverge(Exception):
     pass
 
 class UnstableSimulation(Exception):
+    pass
+
+class EndOfEpisode(Exception):
     pass
 
 class BimanualModelPolicy:
@@ -233,10 +247,20 @@ class BimanualModelPolicy:
             diff[0:3] = np.clip(diff[0:3], -threshold, threshold)
             diff[8:11] = np.clip(diff[8:11], -threshold, threshold)
         actions = []
-        start_quaternion_left = R.from_quat(current_pose[3:7])
-        end_quaternion_left = R.from_quat(new_pose[3:7])
-        start_quaternion_right = R.from_quat(current_pose[11:15])
-        end_quaternion_right = R.from_quat(new_pose[11:15])
+        start_quaternion_left = R.from_quat(np.concatenate([current_pose[4:7], current_pose[3:4]]))
+        end_quaternion_left = R.from_quat(np.concatenate([new_pose[4:7], new_pose[3:4]]))
+        start_quaternion_right = R.from_quat(np.concatenate([current_pose[12:15], current_pose[11:12]]))
+        end_quaternion_right = R.from_quat(np.concatenate([new_pose[12:15], new_pose[11:12]]))
+        delta_rotation_left = (end_quaternion_left * start_quaternion_left.inv()).as_rotvec()
+        delta_rotation_right = (end_quaternion_right * start_quaternion_right.inv()).as_rotvec()
+        threshold = np.pi / 180 * 15
+        # threshold = 0.00001
+        if np.linalg.norm(delta_rotation_left) > threshold or np.linalg.norm(delta_rotation_right) > threshold:
+            logger.warning(f"Delta rotation is too large: {delta_rotation_left} or {delta_rotation_right}. Clipping.")
+            delta_rotation_left = delta_rotation_left * threshold / np.linalg.norm(delta_rotation_left)
+            delta_rotation_right = delta_rotation_right * threshold / np.linalg.norm(delta_rotation_right)
+            end_quaternion_left = R.from_rotvec(delta_rotation_left) * start_quaternion_left
+            end_quaternion_right = R.from_rotvec(delta_rotation_right) * start_quaternion_right
         times = np.linspace(0, 1, (self.frame_interval-margin_frame_number), endpoint=False) + 1/(self.frame_interval-margin_frame_number)
         slerp_left = Slerp([0,1], R.concatenate([start_quaternion_left, end_quaternion_left]))
         slerp_right = Slerp([0,1], R.concatenate([start_quaternion_right, end_quaternion_right]))
@@ -245,11 +269,11 @@ class BimanualModelPolicy:
         for i in range(self.frame_interval - margin_frame_number):
             fraction = (i+1) / (self.frame_interval - margin_frame_number)
             action = current_pose + diff * fraction
-            action[3:7] = interpolated_quaternions_left[i].as_quat()
-            action[11:15] = interpolated_quaternions_right[i].as_quat()
+            action[3:7] = interpolated_quaternions_left[i].as_quat()[[3,0,1,2]]
+            action[11:15] = interpolated_quaternions_right[i].as_quat()[[3,0,1,2]]
             actions.append(action)
         for i in range(self.frame_interval - margin_frame_number, self.frame_interval):
-            action = new_pose
+            action = actions[-1].copy()
             actions.append(action)
         assert len(actions) == self.frame_interval
         return actions
@@ -264,6 +288,9 @@ class BimanualModelPolicy:
             # detokenized = self.predicted_actions.pop(0)
             # detokenized = self.dataset_actions.pop(0)
             detokenized = self.policy.action(policy_input)
+            if detokenized['terminate_episode'][0] == 1:
+                # logger.critical(f'Terminate episode: {detokenized["terminate_episode"]}')
+                raise EndOfEpisode
             left = np.concatenate([detokenized['world_vector_left'], detokenized['rotation_delta_left'], np.clip(1-detokenized['gripper_closedness_action_left'], 0,1)], axis=0)
             right = np.concatenate([detokenized['world_vector_right'], detokenized['rotation_delta_right'], np.clip(1-detokenized['gripper_closedness_action_right'], 0,1)], axis=0)
             return left, right
@@ -294,8 +321,8 @@ class BimanualModelPolicy:
             self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
             # left_gripper_new = np.zeros((1,))
             # right_gripper_new = np.zeros((1,))
-            # left_pose_new[-1] = 0
-            # right_pose_new[-1] = 0
+            left_pose_new[-1] = left_pose_new[-1] - 0.005
+            right_pose_new[-1] = right_pose_new[-1] - 0.005
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
@@ -380,7 +407,7 @@ def main(args):
         script_policy_cls = TransferCubePolicy
     else:
         raise NotImplementedError
-    
+    reward_filter = RewardFilter()
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
                                        dropout_train=True, right_hand_relative=right_hand_relative, version=version,
                                        absolute=absolute)
@@ -392,7 +419,9 @@ def main(args):
     failed_times_limit = 100
     failed_times = 0
     final_rewards = []
-    episode_len = episode_len - frame_interval - 1 + 100
+    episode_len = episode_len - frame_interval - 1 + 200
+    max_timesteps = episode_len
+    logger.info(f'max timesteps: {max_timesteps}')
     while episode_idx < num_episodes:
         if failed_times >= failed_times_limit:
             logger.error('Failed too many times, stop.')
@@ -441,7 +470,7 @@ def main(args):
                 action_q = make_action_q(ts_ee.observation)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
-                if step >= RENDER_START_FRAME and step % frame_interval == 0 and os.getenv('ZZY_DEBUG') == 'True':
+                if step >= RENDER_START_FRAME and step % render_interval == 0 and os.getenv('ZZY_DEBUG') == 'True':
                     for cam_name in camera_names:
                         image = ts_q.observation['images'][cam_name]
                         image_name = f'image_{cam_name}_{step}.jpg'
@@ -456,13 +485,18 @@ def main(args):
                     # diff = action_model - action_script
                     # logger.debug(f'action diff: {diff[0:3]}, {diff[8:11]}')
                     logger.debug(f'action observed: {action_observed}')
-                progress_bar.set_postfix({'reward': ts_q.reward})
-        except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge) as e:
+                reward = ts_q.reward
+                reward_filter(task_name, step, reward)
+                progress_bar.set_postfix({'reward': reward})
+        except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge, TooLowReward) as e:
             failed_times += 1
             logger.error(f'Failed to run episode {episode_idx+1}, error: {e}')
             if rerun_when_error:
                 num_episodes += 1
-
+        except EndOfEpisode:
+            logger.info('End of episode raised by model.')
+            pass
+            
         # model_policy.dump_observation_buffer(save_path / f'observation_{episode_idx}.jpg')
         # model_policy.dump_observation_desired_history(save_path / f'observation_desired_{episode_idx}.txt')
         joint_trajectory = [ts_ee.observation['qpos'] for ts_ee in episode_ee]
@@ -484,8 +518,7 @@ def main(args):
         for cam_name in camera_names:
             data_dict[f'/observations/images/{cam_name}'] = []
 
-        max_timesteps = episode_len
-        logger.info(f'max timesteps: {max_timesteps}')
+
         # progress_bar = trange(max_timesteps)
         existent_frame_num = min(len(joint_trajectory), len(episode_q))
         for i in range(existent_frame_num):
@@ -500,12 +533,12 @@ def main(args):
             for cam_name in camera_names:
                 data_dict[f'/observations/images/{cam_name}'].append(ts_q.observation['images'][cam_name])
         if existent_frame_num < max_timesteps:
-            logger.warning(f'Episode: {episode_idx+1}/{num_episodes} is not fully recorded, {max_timesteps - existent_frame_num} steps are missing.')
+            logger.info(f'Episode: {episode_idx+1}/{num_episodes} is not fully recorded, {max_timesteps - existent_frame_num} steps are padded.')
             for i in range(max_timesteps - existent_frame_num):
                 for key, data_list in data_dict.items():
                     data_list.append(data_list[-1])
 
-            logger.info(f'padded {max_timesteps - existent_frame_num} steps.')
+            # logger.info(f'padded {max_timesteps - existent_frame_num} steps.')
         # HDF5
         data_path = save_path / f'episode_{episode_idx}'
         data_path.parent.mkdir(parents=True, exist_ok=True)

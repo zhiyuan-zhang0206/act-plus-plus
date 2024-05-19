@@ -83,6 +83,7 @@ def main(args):
     dataset_path = Path(os.path.join(dataset_dir, task_name))
     episode_idx = 0
     final_rewards = []
+    logger.info(f'Language instruction: {policy_cls.language_instruction}')
     while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
@@ -200,8 +201,8 @@ def main(args):
             right_diffs.append(location_right_diff)
         left_diff_max = np.max(np.abs(np.array(left_diffs)))
         right_diff_max = np.max(np.abs(np.array(right_diffs)))
-        logger.info(f'Left diff max: {left_diff_max}')
-        logger.info(f'Right diff max: {right_diff_max}')
+        # logger.info(f'Left diff max: {left_diff_max}')
+        # logger.info(f'Right diff max: {right_diff_max}')
         if left_diff_max > 0.1 or right_diff_max > 0.1:
             logger.critical('Large diff in location!')
 
