@@ -329,8 +329,8 @@ class BimanualModelPolicy:
             self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
             # left_gripper_new = np.zeros((1,))
             # right_gripper_new = np.zeros((1,))
-            left_pose_new[-1] = left_pose_new[-1] - 0.005
-            right_pose_new[-1] = right_pose_new[-1] - 0.005
+            left_pose_new[-1] =  left_pose_new[-1] - 0.01
+            right_pose_new[-1] =  right_pose_new[-1] - 0.01
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
@@ -453,6 +453,7 @@ def main(args):
         episode_q = [ts_q]
         # episode_len = MODEL_POLICY_START_FRAME + frame_interval * 24
         policy = script_policy
+        rewards = []
         try:
             progress_bar = trange(episode_len)
             for step in progress_bar:
@@ -495,6 +496,7 @@ def main(args):
                     logger.debug(f'action observed: {action_observed}')
                 reward = ts_q.reward
                 reward_filter(task_name, step, reward)
+                rewards.append((step, reward))
                 progress_bar.set_postfix({'reward': reward})
         except (dm_control.rl.control.PhysicsError, UnstableSimulation, FailedToConverge, TooLowReward) as e:
             failed_times += 1
@@ -514,6 +516,8 @@ def main(args):
         episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
         final_reward = episode_q[-1].reward
         final_rewards.append(final_reward)
+        reward_string = ','.join([f'{r[0]}:{r[1]:.3f}' for r in rewards[MODEL_POLICY_START_FRAME::frame_interval]])
+        logger.info(f'Reward history: {reward_string}')
         logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}, final reward: {final_reward}')
 
         data_dict = {
