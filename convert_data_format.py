@@ -5,6 +5,10 @@ from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 import numpy as np
 import h5py
+import tensorflow
+# use only cpu
+tensorflow.config.set_visible_devices([], 'GPU')
+
 from pyquaternion import Quaternion
 START_FRAME = 200
 START_FRAME -= 1
