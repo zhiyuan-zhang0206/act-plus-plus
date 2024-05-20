@@ -2,7 +2,7 @@
 <!--    <option timestep='0.0025' iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="elliptic"/>-->
 
     <asset>
-        <texture file="wood.png" name="table_texture" type="2d"/>
+        <texture file="table_texture.png" name="table_texture" type="2d"/>
         <material name="table_material" texture="table_texture"/>
         <mesh file="tabletop.stl" name="tabletop" scale="0.001 0.001 0.001" />
     </asset>
