@@ -68,6 +68,7 @@ from scipy.spatial.transform import Slerp
 import copy
 from contextlib import redirect_stdout, redirect_stderr
 import io
+from datetime import datetime
 from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
 logger.info(f'constants: {WORLD_VECTOR_MAX=}, {ROTATION_MAX=}, {WORLD_VECTOR_MIN=}, {ROTATION_MIN=}')
 
@@ -111,6 +112,17 @@ class BimanualModelPolicy:
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
         self.absolute = absolute
+        if ckpt_path == 'newest':
+            parent_dir = Path("/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual")
+            paths = []
+            for d in parent_dir.glob('*'):
+                if d.is_dir():
+                    try:
+                        dt = datetime.strptime(d.stem, '%Y-%m-%d_%H-%M-%S')
+                    except:
+                        continue
+                    paths.append(d)
+            ckpt_path = sorted(paths)[-1]
         if ckpt_path is None:
             dataset_debug = True
         else:
@@ -329,8 +341,8 @@ class BimanualModelPolicy:
             self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
             # left_gripper_new = np.zeros((1,))
             # right_gripper_new = np.zeros((1,))
-            left_pose_new[-1] =  left_pose_new[-1] - 0.01
-            right_pose_new[-1] =  right_pose_new[-1] - 0.01
+            left_pose_new[-1] =  left_pose_new[-1] - 0.005
+            right_pose_new[-1] =  right_pose_new[-1] - 0.005
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
@@ -373,10 +385,10 @@ class BimanualModelPolicy:
 
 
 
+timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 def configure_logging():
     log_dir = Path(__file__).parent / 'logs'
     log_dir.mkdir(exist_ok=True)
-    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     log_file = log_dir / f'{timestamp}.log'
     logger.add(log_file.as_posix())
 
@@ -422,7 +434,7 @@ def main(args):
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
-    save_path = Path(os.path.join(save_dir, task_name, str(args['start_index'])))
+    save_path = Path(os.path.join(save_dir, task_name, timestamp))
     episode_idx = 0
     failed_times_limit = 100
     failed_times = 0
@@ -597,16 +609,15 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', action='store', type=str, help='dataset saving dir', required=False, default=(Path(__file__).parent / 'evaluation_data').as_posix())
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
-    parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
-    parser.add_argument('--always_refresh', type= str2bool, required=True)
-    parser.add_argument('--model_ckpt_path', action='store', type=str, required=True)
+    parser.add_argument('--always_refresh', type= str2bool, required=False, default=True)
+    parser.add_argument('--model_ckpt_path', action='store', type=str, required=False, default='newest')
     parser.add_argument('--frame_interval', action='store', type=int, default=10)
     # parser.add_argument('--dropout_train', action='store_true',default=True)
     parser.add_argument('--right_hand_relative', action='store_true', default=False)
     parser.add_argument('--version', action='store', type=str, default='0.1.4')
     parser.add_argument('--rerun_when_error', action='store_true', default=False)
     parser.add_argument('--seed', action='store', type=int, default=0)
-    parser.add_argument('--absolute', type= str2bool, required=True)
+    parser.add_argument('--absolute', type= str2bool, required=False, default=  True)
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
     main(vars(parser.parse_args()))

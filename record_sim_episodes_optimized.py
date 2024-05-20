@@ -94,7 +94,7 @@ def main(args):
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
-        script_policy.generate_trajectory(ts_ee)
+        script_policy.generate_trajectory(ts_ee, hard_mode=args['hard_mode'])
         random_values = script_policy.random_values
         objects_start_pose = env_ee.task.objects_start_pose
         env_q = make_sim_env(task_name, object_info=object_info)
@@ -244,8 +244,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False, default=1)
     parser.add_argument('--onscreen_render', action='store_true')
     parser.add_argument('--start_index', action='store', type=int, help='start_index', required=False, default=0)
-    parser.add_argument('--render_start', action='store', type=int, help='render_start', required=False, default=250)
-    parser.add_argument('--render_interval', action='store', type=int, help='render_interval', required=False, default=1)
+    parser.add_argument('--render_start', action='store', type=int, help='render_start', required=False, default=200)
+    parser.add_argument('--render_interval', action='store', type=int, help='render_interval', required=False, default=10)
+    parser.add_argument('--hard_mode', action='store_true')
     parser.add_argument('--final_reward_threshold', action='store', type=float, help='final_reward_threshold', required=False, default=0.1)
     main(vars(parser.parse_args()))
 

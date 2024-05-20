@@ -19,7 +19,17 @@ import os
 import glob
 import zipfile
 from datetime import datetime
-def zip_mp4_files(directory, image_only:bool=False):
+
+def zip_mp4_files(directory:Path, image_only:bool=False):
+    paths = directory.rglob('*.mp4')
+    processed_dir = set()
+    for path in paths:
+        if path.parent.absolute() in processed_dir:
+            continue
+        zip_mp4_files_directory(path.parent.absolute().as_posix(), image_only=image_only)
+        processed_dir.add(path.parent.absolute())
+
+def zip_mp4_files_directory(directory, image_only:bool=False):
     suffix = '.mp4' if not image_only else '.png'
     directory:Path = Path(directory)
     # if only one mp4 file, do not zip
@@ -95,11 +105,11 @@ def main(args):
         save_hdf5_video(os.path.join(dataset_dir, data_name), save_image_instead=save_image)
     else:
         print(f'Visualizing all episodes in {dataset_dir}')
-        data_names = [name for name in os.listdir(dataset_dir) if name.endswith('.hdf5')]
+        paths = Path(dataset_dir).rglob('*.hdf5')
         with multiprocessing.Pool(16) as pool:
             save_partial = partial(save_hdf5_video, save_image_instead=save_image)
-            pool.map(save_partial, [os.path.join(dataset_dir, name) for name in data_names])
-    zip_mp4_files(dataset_dir, image_only=save_image)
+            pool.map(save_partial, [path.as_posix() for path in paths])
+    zip_mp4_files(Path(dataset_dir), image_only=save_image)
     # qpos, qvel, action, image_dict = load_hdf5(dataset_dir, datas_name)
     # save_videos(image_dict, DT, video_path=os.path.join(dataset_dir, datas_name + '_video.mp4'))
     # visualize_joints(qpos, action, plot_path=os.path.join(dataset_dir, dataset_name + '_qpos.png'))

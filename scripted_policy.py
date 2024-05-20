@@ -176,7 +176,7 @@ class InsertionPolicy(BasePolicy):
 
 class StirPolicy(BasePolicy):
     language_instruction :str = 'use the spoon to stir in the cup' # put the spoon into cup and stir
-    def generate_trajectory(self, ts_first, random_values:list=None):
+    def generate_trajectory(self, ts_first, random_values:list=None, hard_mode:bool=False):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
         init_mocap_pose_right = ts_first.observation['mocap_pose_right']
@@ -212,15 +212,18 @@ class StirPolicy(BasePolicy):
         if random_values is None:
             meet_xyz = (cup_xyz + spoon_xyz)/2 # + np.random.uniform(-0.1, 0.1, 3)
             meet_xyz[2] = 0.15 # + np.random.uniform(-0.1, 0.1)
-            delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
+            # delta_1 = np.array([np.random.uniform(-0.2, -0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, -0.05)])
             premeet_left = meet_xyz + np.array([np.random.uniform(-0.06, -0.03), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.0)])
             delta_6 = np.array([np.random.uniform(0.05, 0.1), np.random.uniform(-0.03, 0.03), np.random.uniform(0.15, 0.20)])
-            
+            premeet_right  = meet_xyz + delta_6
+            if hard_mode:
+                meet_xyz = (premeet_left + premeet_right) / 2
+                meet_xyz[2] = 0.15
             random_values = {
                 "meet_xyz": meet_xyz,
-                "delta_1": delta_1,
+                # "delta_1": delta_1,
                 "premeet_left": premeet_left,
-                "delta_6": delta_6,
+                "premeet_right": premeet_right,
                 # "delta_7":random.choice(stir_deltas),
                 # "delta_8":random.choice(stir_deltas),
                 # "delta_9":random.choice(stir_deltas),
@@ -251,7 +254,7 @@ class StirPolicy(BasePolicy):
             {"t": 80, "xyz": spoon_xyz + np.array([-0.06, 0.0, -0.032]),    "quat": right_down.elements,   "gripper": 0}, # sleep
             {"t": 120, "xyz": spoon_xyz + np.array([-0.06, 0.0, 0.2]),      "quat": right_down.elements,   "gripper": 0}, # sleep
             {"t": 160, "xyz": spoon_xyz + np.array([-0.06, 0.0, 0.3]),      "quat": right_stir.elements,   "gripper": 0}, # sleep
-            {"t": 200, "xyz": random_values['meet_xyz'] + random_values['delta_6'],                           "quat": right_stir.elements,   "gripper":0}, # sleep
+            {"t": 200, "xyz": random_values['premeet_right'],                           "quat": right_stir.elements,   "gripper":0}, # sleep
             {"t": 230, "xyz": random_values['meet_xyz'] + np.array([ 0.02, 0, 0.21]),          "quat": right_stir.elements,   "gripper":0}, # sleep
             {"t": 260, "xyz": random_values['meet_xyz'] + np.array([-0.02, 0, 0.23]),          "quat": right_stir.elements,   "gripper":0}, # sleep
             {"t": 290, "xyz": random_values['meet_xyz'] + stir_deltas[0],       "quat": right_stir.elements,   "gripper":0}, # sleep
@@ -272,7 +275,7 @@ class StirPolicy(BasePolicy):
 
 class OpenLidPolicy(BasePolicy):
     language_instruction :str = 'open the lid of the cup'
-    def generate_trajectory(self, ts_first, random_values:list=None):
+    def generate_trajectory(self, ts_first, random_values:list=None, hard_mode:bool=False):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
         init_mocap_pose_right = ts_first.observation['mocap_pose_right']
@@ -296,6 +299,9 @@ class OpenLidPolicy(BasePolicy):
             meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
+            if hard_mode:
+                meet_xyz = (pre_meet_left + pre_meet_right) / 2
+                meet_xyz[2] = 0.2
             # left_hand_tilt_angle = np.random.uniform(0, 10)
             random_values = {
                 "meet_xyz": meet_xyz,
@@ -345,7 +351,7 @@ class OpenLidPolicy(BasePolicy):
 
 class TransferCubePolicy(BasePolicy):
     language_instruction :str = 'transfer the cube from the left hand to the right hand'
-    def generate_trajectory(self, ts_first, random_values:list=None):
+    def generate_trajectory(self, ts_first, random_values:list=None, hard_mode:bool=False):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']
         init_mocap_pose_right = ts_first.observation['mocap_pose_right']
@@ -363,6 +369,9 @@ class TransferCubePolicy(BasePolicy):
             meet_xyz[2] = 0.2 # + np.random.uniform(-0.05, 0.1)
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
+            if hard_mode:
+                meet_xyz = (pre_meet_left + pre_meet_right) / 2
+                meet_xyz[2] = 0.2
             # left_hand_tilt_angle = np.random.uniform(0, 10)
             # left_hand_tilt_angle = 5
             random_values = {
