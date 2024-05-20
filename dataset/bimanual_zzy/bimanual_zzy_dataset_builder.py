@@ -11,9 +11,9 @@ from pathlib import Path
 class Builder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for bimanual_zzy dataset."""
 
-    VERSION = tfds.core.Version("0.1.10")
+    VERSION = tfds.core.Version("0.1.9")
     RELEASE_NOTES = {
-        "0.1.10": "50 episodes of transfercube, stir, and openlid, with variable meet position and small variation range.",
+        "0.1.9": "50 episodes of transfercube, stir, and openlid, with fixed meet position and small variation range.",
     }
 
     def _info(self) -> tfds.core.DatasetInfo:
@@ -21,7 +21,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
         # TODO(bimanual): Specifies the tfds.core.DatasetInfo object
         return tfds.core.DatasetInfo(
             builder=self,
-            description="50 episodes of transfercube, stir, and openlid, with fixed meet position and small variation range. But stir with good language instruction.",
+            description="50 episodes of transfercube, stir, and openlid, with fixed meet position and small variation range.",
             features=tfds.features.FeaturesDict(
                 {
                     "steps": tfds.features.Dataset(

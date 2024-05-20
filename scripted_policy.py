@@ -175,7 +175,7 @@ class InsertionPolicy(BasePolicy):
         ]
 
 class StirPolicy(BasePolicy):
-    language_instruction :str = 'use the spoon to stir in the cup' # put the spoon into cup and stir
+    language_instruction :str = "put the spoon into cup and stir" # 'use the spoon to stir in the cup' # 
     def generate_trajectory(self, ts_first, random_values:list=None, hard_mode:bool=False):
         self.trajectory_generated = True
         init_mocap_pose_left = ts_first.observation['mocap_pose_left']

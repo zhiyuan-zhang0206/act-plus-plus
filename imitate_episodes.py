@@ -139,6 +139,7 @@ def main(args):
         'temporal_agg': args['temporal_agg'],
         'camera_names': camera_names,
         'load_pretrain': args['load_pretrain'],
+        'hard_mode': args['hard_mode'],
         'actuator_config': actuator_config,
     }
 
@@ -234,6 +235,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     ckpt_dir = config['ckpt_dir']
     state_dim = config['state_dim']
     policy_class = config['policy_class']
+    hard_mode = config['hard_mode']
     onscreen_render = config['onscreen_render']
     policy_config = config['policy_config']
     camera_names = config['camera_names']
@@ -320,7 +322,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         env_ee = make_ee_sim_env(task_name.removesuffix('-act'))
         ts_ee = env_ee.reset()
         script_policy = script_policy_class()
-        script_policy.generate_trajectory(ts_ee)
+        script_policy.generate_trajectory(ts_ee, hard_mode=hard_mode)
         object_info = env_ee.task.object_info
         env = make_sim_env(task_name.removesuffix('-act'), object_info)
         env_max_reward = env.task.max_reward
@@ -639,6 +641,7 @@ if __name__ == '__main__':
     parser.add_argument('--vq_class', action='store', type=int, help='vq_class')
     parser.add_argument('--vq_dim', action='store', type=int, help='vq_dim')
     parser.add_argument('--no_encoder', action='store_true')
+    parser.add_argument('--hard_mode', action='store_true')
     
     main(vars(parser.parse_args()))
 

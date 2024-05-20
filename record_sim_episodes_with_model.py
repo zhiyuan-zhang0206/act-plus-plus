@@ -455,7 +455,7 @@ def main(args):
             env_ee.task.object_start_pose = model_policy.metadata['objects_start_pose']
             script_policy.generate_trajectory(ts_ee, model_policy.metadata['random_values'])
         else:
-            script_policy.generate_trajectory(ts_ee)
+            script_policy.generate_trajectory(ts_ee, hard_mode=args['hard_mode'])
         episode_ee = [ts_ee]
         
         object_info = env_ee.task.object_info
@@ -528,7 +528,7 @@ def main(args):
         episode_max_reward = np.max([ts.reward for ts in episode_q[1:]])
         final_reward = episode_q[-1].reward
         final_rewards.append(final_reward)
-        reward_string = ','.join([f'{r[0]}:{r[1]:.3f}' for r in rewards[MODEL_POLICY_START_FRAME::frame_interval]])
+        reward_string = '  ,  '.join([f'{r[0]}:{r[1]:.3f}' for r in rewards[MODEL_POLICY_START_FRAME::frame_interval]])
         logger.info(f'Reward history: {reward_string}')
         logger.info(f'Episode return: {episode_return}, max reward: {episode_max_reward}, final reward: {final_reward}')
 
@@ -620,6 +620,7 @@ if __name__ == '__main__':
     parser.add_argument('--absolute', type= str2bool, required=False, default=  True)
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
+    parser.add_argument('--hard_mode', action='store_true', default=False)
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_15-41-55/checkpoint_5800 --always_refresh True --absolute True --num_episodes 10

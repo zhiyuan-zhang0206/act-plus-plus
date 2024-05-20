@@ -80,6 +80,7 @@ def get_args_parser():
     parser.add_argument('--future_len', action='store', type=int)
     parser.add_argument('--prediction_len', action='store', type=int)
     
+    parser.add_argument('--hard_mode', action='store_true')
     return parser
 
 
