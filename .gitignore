@@ -155,3 +155,7 @@ debug/
 openlid_ckpt/
 stir_ckpt/
 transfercube_ckpt/
+openlid_ckpt_hard/
+transfercube_ckpt_hard/
+stir_ckpt_hard/
+
