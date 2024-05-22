@@ -69,7 +69,7 @@ import copy
 from contextlib import redirect_stdout, redirect_stderr
 import io
 from datetime import datetime
-from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN
+from utils import WORLD_VECTOR_MAX, ROTATION_MAX, WORLD_VECTOR_MIN, ROTATION_MIN, LOCATION_MIN
 logger.info(f'constants: {WORLD_VECTOR_MAX=}, {ROTATION_MAX=}, {WORLD_VECTOR_MIN=}, {ROTATION_MIN=}')
 
 class TooLowReward(Exception):
@@ -107,8 +107,10 @@ class BimanualModelPolicy:
                  dropout_train:bool=True,
                  right_hand_relative:bool=False,
                  version:str='0.1.4',
-                 absolute:bool=False
+                 absolute:bool=False,
+                 center_location:bool=False
                 ):
+        self.center_location = center_location
         instruction_to_embedding_path = Path('/home/users/ghc/zzy/open_x_embodiment-main/models/string_to_embedding.npy')
         self.instruction_to_embedding = np.load(instruction_to_embedding_path, allow_pickle=True).item()
         self.absolute = absolute
@@ -261,26 +263,26 @@ class BimanualModelPolicy:
         margin_frame_number = int(round(0.3 * self.frame_interval))
         assert current_pose.shape == new_pose.shape
         diff = new_pose - current_pose
-        threshold = 0.08
-        if (np.abs(diff[0:3])>threshold).any() or (np.abs(diff[8:11])>threshold).any():
-            logger.warning(f"Difference in position is too large: {diff[0:3]} or {diff[8:11]}. Clipping.")
-            diff[0:3] = np.clip(diff[0:3], -threshold, threshold)
-            diff[8:11] = np.clip(diff[8:11], -threshold, threshold)
+        # threshold = 0.2
+        # if (np.abs(diff[0:3])>threshold).any() or (np.abs(diff[8:11])>threshold).any():
+        #     logger.warning(f"Difference in position is too large: {diff[0:3]} or {diff[8:11]}. Clipping.")
+        #     diff[0:3] = np.clip(diff[0:3], -threshold, threshold)
+        #     diff[8:11] = np.clip(diff[8:11], -threshold, threshold)
         actions = []
         start_quaternion_left = R.from_quat(np.concatenate([current_pose[4:7], current_pose[3:4]]))
         end_quaternion_left = R.from_quat(np.concatenate([new_pose[4:7], new_pose[3:4]]))
         start_quaternion_right = R.from_quat(np.concatenate([current_pose[12:15], current_pose[11:12]]))
         end_quaternion_right = R.from_quat(np.concatenate([new_pose[12:15], new_pose[11:12]]))
-        delta_rotation_left = (end_quaternion_left * start_quaternion_left.inv()).as_rotvec()
-        delta_rotation_right = (end_quaternion_right * start_quaternion_right.inv()).as_rotvec()
-        threshold = np.pi / 180 * 15
+        # delta_rotation_left = (end_quaternion_left * start_quaternion_left.inv()).as_rotvec()
+        # delta_rotation_right = (end_quaternion_right * start_quaternion_right.inv()).as_rotvec()
+        # threshold = np.pi / 180 * 15
         # threshold = 0.00001
-        if np.linalg.norm(delta_rotation_left) > threshold or np.linalg.norm(delta_rotation_right) > threshold:
-            logger.warning(f"Delta rotation is too large: {delta_rotation_left} or {delta_rotation_right}. Clipping.")
-            delta_rotation_left = delta_rotation_left * threshold / np.linalg.norm(delta_rotation_left)
-            delta_rotation_right = delta_rotation_right * threshold / np.linalg.norm(delta_rotation_right)
-            end_quaternion_left = R.from_rotvec(delta_rotation_left) * start_quaternion_left
-            end_quaternion_right = R.from_rotvec(delta_rotation_right) * start_quaternion_right
+        # if np.linalg.norm(delta_rotation_left) > threshold or np.linalg.norm(delta_rotation_right) > threshold:
+        #     logger.warning(f"Delta rotation is too large: {delta_rotation_left} or {delta_rotation_right}. Clipping.")
+        #     delta_rotation_left = delta_rotation_left * threshold / np.linalg.norm(delta_rotation_left)
+        #     delta_rotation_right = delta_rotation_right * threshold / np.linalg.norm(delta_rotation_right)
+        #     end_quaternion_left = R.from_rotvec(delta_rotation_left) * start_quaternion_left
+        #     end_quaternion_right = R.from_rotvec(delta_rotation_right) * start_quaternion_right
         times = np.linspace(0, 1, (self.frame_interval-margin_frame_number), endpoint=False) + 1/(self.frame_interval-margin_frame_number)
         slerp_left = Slerp([0,1], R.concatenate([start_quaternion_left, end_quaternion_left]))
         slerp_right = Slerp([0,1], R.concatenate([start_quaternion_right, end_quaternion_right]))
@@ -308,6 +310,9 @@ class BimanualModelPolicy:
             # detokenized = self.predicted_actions.pop(0)
             # detokenized = self.dataset_actions.pop(0)
             detokenized = self.policy.action(policy_input)
+            if self.center_location:
+                detokenized['world_vector_left'] =  detokenized['world_vector_left'] + LOCATION_MIN
+                detokenized['world_vector_right'] = detokenized['world_vector_right'] + LOCATION_MIN
             if detokenized['terminate_episode'][0] == 1:
                 # logger.critical(f'Terminate episode: {detokenized["terminate_episode"]}')
                 raise EndOfEpisode
@@ -341,8 +346,8 @@ class BimanualModelPolicy:
             self.right_pose = right_pose_new = self._calculate_new_pose(self.right_pose, action[1], 'right', left_pose=self.left_pose)
             # left_gripper_new = np.zeros((1,))
             # right_gripper_new = np.zeros((1,))
-            left_pose_new[-1] =  left_pose_new[-1] - 0.005
-            right_pose_new[-1] =  right_pose_new[-1] - 0.005
+            left_pose_new[-1] =  left_pose_new[-1] - 0.01
+            right_pose_new[-1] =  right_pose_new[-1] - 0.01
             current_pose = np.concatenate([observation['left_pose'], observation['qpos'][6:7],observation['right_pose'], observation['qpos'][13:14]])
             new_pose = np.concatenate([left_pose_new, right_pose_new])
             assert len(self.action_buffer) == 0
@@ -407,6 +412,7 @@ def main(args):
     version = args['version']
     rerun_when_error = args['rerun_when_error']
     seed = args['seed']
+    center_location = args['center_location']
     absolute = args['absolute']
     temp_folder = Path(__file__).parent / 'debug'
     temp_folder.mkdir(exist_ok=True)
@@ -430,7 +436,7 @@ def main(args):
     reward_filter = RewardFilter()
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
                                        dropout_train=True, right_hand_relative=right_hand_relative, version=version,
-                                       absolute=absolute)
+                                       absolute=absolute, center_location=center_location)
     model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
@@ -621,6 +627,7 @@ if __name__ == '__main__':
     parser.add_argument('--render_interval', action='store', type=int, default=10)
     parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
     parser.add_argument('--hard_mode', action='store_true', default=False)
+    parser.add_argument('--center_location', action='store_true')
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_15-41-55/checkpoint_5800 --always_refresh True --absolute True --num_episodes 10

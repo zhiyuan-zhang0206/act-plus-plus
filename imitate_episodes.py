@@ -2,7 +2,7 @@ import os
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import torch
 import numpy as np
 import pickle
@@ -156,7 +156,7 @@ def main(args):
         ckpt_names = [f'policy_last.ckpt']
         results = []
         for ckpt_name in ckpt_names:
-            success_rate, avg_return = eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10)
+            success_rate, avg_return = eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50)
             # wandb.log({'success_rate': success_rate, 'avg_return': avg_return})
             results.append([ckpt_name, success_rate, avg_return])
 
@@ -314,7 +314,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
     max_timesteps = int(max_timesteps * 1) # may increase for real-world tasks
 
     episode_returns = []
-    highest_rewards = []
+    final_rewards = []
     for rollout_id in range(num_rollouts):
 
         rollout_id += 0
@@ -475,18 +475,18 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         rewards = np.array(rewards)
         episode_return = np.sum(rewards[rewards!=None])
         episode_returns.append(episode_return)
-        episode_highest_reward = np.max(rewards)
-        highest_rewards.append(episode_highest_reward)
-        print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
+        episode_final_reward = rewards[-1]
+        final_rewards.append(episode_final_reward)
+        print(f'Rollout {rollout_id}\n{episode_return=}, {episode_final_reward=}, {env_max_reward=}, Success: {episode_final_reward==env_max_reward}')
 
         if save_episode:
             save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, 'videos', f'video{rollout_id}.mp4'))
 
-    success_rate = np.mean(np.array(highest_rewards) == env_max_reward)
+    success_rate = np.mean(np.array(final_rewards) == env_max_reward)
     avg_return = np.mean(episode_returns)
     summary_str = f'\nSuccess rate: {success_rate}\nAverage return: {avg_return}\n\n'
     for r in range(env_max_reward+1):
-        more_or_equal_r = (np.array(highest_rewards) >= r).sum()
+        more_or_equal_r = (np.array(final_rewards) >= r).sum()
         more_or_equal_r_rate = more_or_equal_r / num_rollouts
         summary_str += f'Reward >= {r}: {more_or_equal_r}/{num_rollouts} = {more_or_equal_r_rate*100}%\n'
 
@@ -498,7 +498,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=10):
         f.write(summary_str)
         f.write(repr(episode_returns))
         f.write('\n\n')
-        f.write(repr(highest_rewards))
+        f.write(repr(final_rewards))
 
     return success_rate, avg_return
 

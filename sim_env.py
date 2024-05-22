@@ -241,7 +241,7 @@ class TransferCubeTask(BimanualViperXTask):
 class StirTask(BimanualViperXTask):
     def __init__(self, random=None, object_info:dict=None):
         super().__init__(random=random)
-        self.max_reward = 4
+        self.max_reward = 3
         self.object_info = object_info
 
     def initialize_episode(self, physics):
@@ -276,7 +276,8 @@ class StirTask(BimanualViperXTask):
         x_y_distance = np.linalg.norm(cup_location[:2] - spoon_location[:2])
         z_distance = np.abs(cup_location[2] - spoon_location[2])
         weighted_distance = (x_y_distance * 2 + z_distance) / 2
-        closeness_reward = (0.2 - np.clip(weighted_distance, 0, 0.2)) * 10
+        # closeness_reward = (0.2 - np.clip(weighted_distance, 0, 0.2)) * 10
+        closeness_reward = int(weighted_distance < 0.12)
         reward = 0
         reward += int(touch_left_gripper)
         reward += int(touch_right_gripper)
@@ -298,7 +299,7 @@ def get_contact_pairs(physics):
 class OpenLidTask(BimanualViperXTask):
     def __init__(self, random=None, object_info:dict=None):
         super().__init__(random=random)
-        self.max_reward = 4
+        self.max_reward = 3
         self.object_info = object_info
 
     def initialize_episode(self, physics):
@@ -348,8 +349,10 @@ class OpenLidTask(BimanualViperXTask):
         object_pose = physics.data.qpos.copy()[16:]
         cup_location = object_pose[:3]
         lid_location = object_pose[7:10]
-        x_y_distance = np.linalg.norm(cup_location[:2] - lid_location[:2])
-        farness_reward = np.clip(x_y_distance, 0, 0.1) * 20
+        # x_y_distance = np.linalg.norm(cup_location[:2] - lid_location[:2])
+        # farness_reward = np.clip(x_y_distance, 0, 0.1) * 20
+        farness_reward = int(abs(lid_location[2] - cup_location[2]) > 0.005)
+        # farness_reward = int((lid_location[2] - cup_location[2]) > 0.05)
         reward += farness_reward
         return reward
 

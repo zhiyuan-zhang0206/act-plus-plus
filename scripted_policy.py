@@ -301,10 +301,10 @@ class OpenLidPolicy(BasePolicy):
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
             if hard_mode:
-                pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.07, +0.07), np.random.uniform(-0.07, 0.00)])
-                pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.07, +0.07), np.random.uniform(0.03, 0.1)])
+                pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.18, +0.18), np.random.uniform(-0.05, 0.00)])
+                pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.18, +0.18), np.random.uniform(0.03, 0.15)])
                 meet_xyz = (pre_meet_left + pre_meet_right) / 2
-                meet_xyz[2] = 0.2 + np.random.uniform(-0.05, 0.05)
+                meet_xyz[2] = 0.2
             # left_hand_tilt_angle = np.random.uniform(0, 10)
             random_values = {
                 "meet_xyz": meet_xyz,
@@ -373,10 +373,10 @@ class TransferCubePolicy(BasePolicy):
             pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.03, +0.03), np.random.uniform(-0.03, 0.00)])
             pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.03, +0.03), np.random.uniform(0.03, 0.06)])
             if hard_mode:
-                pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.12, +0.12), np.random.uniform(-0.05, 0.00)])
-                pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.06), np.random.uniform(-0.12, +0.12), np.random.uniform(0.02, 0.1)])        
+                pre_meet_left = meet_xyz + np.array([np.random.uniform(-0.03, -0.00), np.random.uniform(-0.15, +0.15), np.random.uniform(-0.06, 0.00)])
+                pre_meet_right = meet_xyz + np.array([np.random.uniform(0.03, 0.1), np.random.uniform(-0.15, +0.15), np.random.uniform(0.02, 0.06)])        
                 meet_xyz = (pre_meet_left + pre_meet_right) / 2
-                meet_xyz[2] = 0.2 + np.random.uniform(-0.05, 0.05)
+                meet_xyz[2] = 0.2
             # left_hand_tilt_angle = np.random.uniform(0, 10)
             # left_hand_tilt_angle = 5
             random_values = {

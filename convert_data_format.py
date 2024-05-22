@@ -1,5 +1,4 @@
-import matplotlib.pyplot as plt
-import sys
+
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation as R
 from pathlib import Path
@@ -9,31 +8,15 @@ import tensorflow
 # use only cpu
 tensorflow.config.set_visible_devices([], 'GPU')
 
-from pyquaternion import Quaternion
 START_FRAME = 200
 START_FRAME -= 1
 TIME_INTERVAL = 10
 RIGHT_HAND_RELATIVE = True
-language_embedding_path = Path(__file__).parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
+language_embedding_path = Path(__file__).absolute().parent.parent / 'open_x_embodiment-main/models/string_to_embedding.npy'
 language_to_embedding = np.load(language_embedding_path, allow_pickle=True).item()
 
 def extract_index(name):
     return int(name.split('_')[-1])
-
-LOCATION_MAX = 0
-LOCATION_MIN = 0
-ROTATION_MAX = 0
-ROTATION_MIN = 0
-def update_max_min(l1, l2, r1, r2):
-    location_max = np.max(np.concatenate([l1, l2]))
-    location_min = np.min(np.concatenate([l1, l2]))
-    rotation_max = np.max(np.concatenate([r1, r2]))
-    rotation_min = np.min(np.concatenate([r1, r2]))
-    global LOCATION_MAX, LOCATION_MIN, ROTATION_MAX, ROTATION_MIN
-    LOCATION_MAX = max(LOCATION_MAX, location_max)
-    LOCATION_MIN = min(LOCATION_MIN, location_min)
-    ROTATION_MAX = max(ROTATION_MAX, rotation_max)
-    ROTATION_MIN = min(ROTATION_MIN, rotation_min)
 
 def wxyz_to_xyzw(quat):
     if len(quat.shape) == 2:
@@ -113,7 +96,6 @@ def process_data(path, debug=False, absolute = False, right_hand_relative = Fals
     world_vector_right = right_location if absolute else right_vector_diff
     rotation_delta_left = left_rpy if absolute else left_rpy_diff
     rotation_delta_right = right_rpy if absolute else rotation_delta_right
-    update_max_min(world_vector_left, world_vector_right, rotation_delta_left, rotation_delta_right)
     
     action_left = np.clip(1 - action[:, 6], 0, 1 )
     action_right = np.clip(1 - action[:, 13], 0, 1 )
@@ -160,9 +142,9 @@ def test():
     # print(right_pose[1:, :3] - right_pose[:-1, :3])
     print(right_vector_diff[0])
     # print(random_values)
-
+import os
 from argparse import ArgumentParser
-
+import json 
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -174,10 +156,36 @@ def str2bool(v):
 
 # python convert_data_format.py --right_hand_relative False --absolute True
 
+def get_data_ranges(datas):
+    world_vector_min = np.inf
+    world_vector_max = -np.inf
+    rotation_min = np.inf
+    rotation_max = -np.inf
+    for data in datas:
+        world_vector_min = min(world_vector_min, min(np.min(data['world_vector_left']), np.min(data['world_vector_right'])))
+        world_vector_max = max(world_vector_max, max(np.max(data['world_vector_left']), np.max(data['world_vector_right'])))
+        rotation_min = min(rotation_min, min(np.min(data['rotation_delta_left']), np.min(data['rotation_delta_right'])))
+        rotation_max = max(rotation_max, max(np.max(data['rotation_delta_left']), np.max(data['rotation_delta_right'])))
+    return world_vector_min, world_vector_max, rotation_min, rotation_max
+
+def normalize_location(datas):
+    world_vector_left_list = []
+    world_vector_right_list = []
+    for data in datas:
+        world_vector_left_list.append(data['world_vector_left'])
+        world_vector_right_list.append(data['world_vector_right'])
+    location_min = np.min(np.concatenate(world_vector_left_list + world_vector_right_list), axis=0)
+    for data in datas:
+        data['world_vector_left'] = data['world_vector_left'] - location_min
+        data['world_vector_right'] = data['world_vector_right'] - location_min
+    return location_min
+
 def main(args):
 
-    hdf5_directory = Path(__file__).parent / 'generated_data'
-
+    hdf5_directory = Path(__file__).absolute().parent / 'generated_data'
+    data_config_path = Path(__file__).absolute().parent.parent / 'open_x_embodiment-main/data_config.json'
+    with open(data_config_path, 'r') as f:
+        data_config = json.load(f)
     paths = []
     for path in sorted(list(hdf5_directory.rglob('*.hdf5'))):
         # if 'stir' in path.stem:
@@ -188,22 +196,39 @@ def main(args):
         # if 'transfercube' not in path.as_posix():
             continue
         paths.append(path)
-    test = False
+    test = os.getenv('ZZY_DEBUG') == "True"
     if test:
         paths = paths[1:3]
     datas = []
     for i, p in tqdm(list(enumerate(paths))):
         data = process_data(p, debug= i==0, absolute=args.absolute, right_hand_relative=args.right_hand_relative)
         datas.append(data)
-    print(f"data ranges: {LOCATION_MIN=}, {LOCATION_MAX=}, {ROTATION_MIN=}, {ROTATION_MAX=}")
-
+    
+    world_vector_min, world_vector_max, rotation_min, rotation_max = get_data_ranges(datas)
+    print(f"data ranges: {world_vector_min=}, {world_vector_max=}, {rotation_min=}, {rotation_max=}")
+    
+    if args.center_location:
+        location_min = normalize_location(datas)
+        data_config['location_min'] = location_min.tolist()
+        with open(data_config_path, 'w') as f:
+            json.dump(data_config, f)
+        print(f"location min: {location_min}")
+        
+        world_vector_min, world_vector_max, rotation_min, rotation_max = get_data_ranges(datas)
+        print(f"data ranges after centering: {world_vector_min=}, {world_vector_max=}, {rotation_min=}, {rotation_max=}")
+    data_config["world_vector_min"] = world_vector_min.tolist()
+    data_config["world_vector_max"] = world_vector_max.tolist()
+    data_config["rotation_min"] = rotation_min.tolist()
+    data_config["rotation_max"] = rotation_max.tolist()
+    with open(data_config_path, 'w') as f:
+        json.dump(data_config, f)
     save_dir = Path('/home/users/ghc/zzy/tensorflow-datasets/bimanual_zzy/data')
     save_dir.mkdir(exist_ok=True, parents=True)
     test_path = save_dir / 'test'
     train_path = save_dir / 'train'
     test_path.mkdir(exist_ok=True, parents=True)
     train_path.mkdir(exist_ok=True, parents=True)
-    for i, data in enumerate(datas):
+    for i, data in tqdm(enumerate(datas), total=len(datas)):
         file_name = f'episode_{i:04d}.npy'
         if i % 10 == 0:
             np.save(test_path / file_name, data)
@@ -216,8 +241,9 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--right_hand_relative', type=str2bool, required=True)
     parser.add_argument('--absolute', type=str2bool, required=True)
+    parser.add_argument('--center_location', type=str2bool, required=True)
     args = parser.parse_args()
     main(args)
     # test()
 
-# python convert_data_format.py --right_hand_relative False --absolute True
+# python convert_data_format.py --right_hand_relative False --absolute True --center_location True

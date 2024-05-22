@@ -435,4 +435,6 @@ with data_config_path.open() as f:
     WORLD_VECTOR_MAX = data_config['world_vector_max']
     WORLD_VECTOR_MIN = data_config['world_vector_min']
     ROTATION_MAX = data_config['rotation_max']
-    ROTATION_MIN = data_config['rotation_min']
+    ROTATION_MIN = data_config['rotation_min'] # for dataloader and model
+    LOCATION_MIN = data_config['location_min'] # for inference
+    # SCALE = data_config['scale']

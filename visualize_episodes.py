@@ -166,7 +166,7 @@ def save_videos(video, dt, video_path=None, save_image_instead:bool=False):
                 image = image[:, :, [2, 1, 0]]  # swap B and R channel
                 out.write(image)
             out.release()
-        print(f'Saved video to: {video_path}')
+        print(f'Saved video to: {Path(video_path).absolute().as_posix()}')
 from tqdm import trange
 def save_videos_separate(video, dt, video_path=None):
     return
