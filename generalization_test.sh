@@ -1,15 +1,4 @@
 # table texture test
-# rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-# cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen0.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-
-# rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-# cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen1.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-
-# rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-# cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen2.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-
-# rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
-# cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen3.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
 
 
 
@@ -29,12 +18,63 @@ process_files() {
         cp "$file" "$new_xml_file"
     done
 }
-
+export CUDA_VISIBLE_DEVICES=2
 TARGET_DIR="/home/users/ghc/zzy/act-plus-plus/assets"
-GEN_NUMBER=0
-
-process_files "$TARGET_DIR" "$GEN_NUMBER"
+ckpt="/home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-23_17-49-00"
 
 
 
+rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen1.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+. /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" # 0 0 0
+conda activate zzy-aloha-train
+WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 3
+WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 9
+WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 2
+conda deactivate
 
+rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen2.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+. /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" # 0 7 0
+conda activate zzy-aloha-train
+WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 3
+WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 10
+WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 6
+conda deactivate
+
+rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen3.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+. /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" #  0 3 0
+conda activate zzy-aloha-train
+WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 1
+WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 10
+WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 3
+conda deactivate
+
+rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen0.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+
+# rm /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+# cp /home/users/ghc/zzy/act-plus-plus/assets/table_texture_gen0.png /home/users/ghc/zzy/act-plus-plus/assets/table_texture.png
+# process_files "$TARGET_DIR" 0
+
+# . /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" # 3 8 7
+# conda activate zzy-aloha-train
+# process_files "$TARGET_DIR" 1
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 1
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 10
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 4
+
+# . /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" # 2 8 1
+# process_files "$TARGET_DIR" 2
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 1
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 10
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 2
+
+# process_files "$TARGET_DIR" 3
+# . /home/users/ghc/zzy/act-plus-plus/inference.sh "$ckpt" # 0 9 0
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name stir-act --ckpt_dir stir_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval                  # 0
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name openlid-act --ckpt_dir openlid_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval            # 10
+# WANDB_MODE=offline python3 imitate_episodes.py --task_name transfercube-act --ckpt_dir transfercube_ckpt --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --num_steps 2000  --lr 1e-5 --seed 0 --eval  # 2
+# conda deactivate
+# process_files "$TARGET_DIR" 0

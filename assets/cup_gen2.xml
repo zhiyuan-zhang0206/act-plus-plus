@@ -14,7 +14,7 @@
   </asset>
   <worldbody>
     <body name="cup" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0">
-      <geom type="mesh" mesh="cup_visual" pos="0.0 0.0 0.0"  rgba="0.95 0.65 0.15 1" contype="0" conaffinity="0"/>
+      <geom type="mesh" mesh="cup_visual" pos="0.0 0.0 0.0"  rgba="0.647 0.649 0.418 1" contype="0" conaffinity="0"/>
       <geom type="mesh" mesh="cup_body_0_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
       <geom type="mesh" mesh="cup_body_1_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>
       <geom type="mesh" mesh="cup_body_2_collision" pos="0.0 0.0 0.0"   rgba="0.95 0.65 0.15 0"/>

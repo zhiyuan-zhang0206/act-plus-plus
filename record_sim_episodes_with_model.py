@@ -6,7 +6,7 @@ import logging
 if __name__ == '__main__':
     os.environ['MUJOCO_GL'] = 'osmesa'
     os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '2'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.60'
     class WarningCaptureHandler(absl_logging.PythonHandler):
@@ -85,9 +85,10 @@ class RewardFilter:
             #     if reward < 2:
             #         raise TooLowReward(f"Reward is too low: {reward}")
         elif task_name == 'transfercube':
-            if step >=450:
-                if reward < 1:
-                    raise TooLowReward(f"Reward is too low: {reward}")
+            pass
+            # if step >=450:
+            #     if reward < 1:
+            #         raise TooLowReward(f"Reward is too low: {reward}")
 
 class FailedToConverge(Exception):
     pass
@@ -162,20 +163,19 @@ class BimanualModelPolicy:
             pass
         else:
             logger.debug('loading model')
-            model = rtx.models.rt1.BimanualRT1(
-                num_image_tokens=81,
-                num_action_tokens=11,
-                layer_size=256,
-                vocab_size=512,
-                use_token_learner=True,
-                world_vector_range=(WORLD_VECTOR_MIN, WORLD_VECTOR_MAX),
-                rotation_range=(ROTATION_MIN, ROTATION_MAX)
-                )   
+            # model = rtx.models.rt1.BimanualRT1(
+            #     num_image_tokens=81,
+            #     num_action_tokens=11,
+            #     layer_size=256,
+            #     vocab_size=512,
+            #     use_token_learner=True,
+            #     )   
             self.policy = rtx.rt1_bimanual_inference_example.RT1BimanualPolicy(
                 checkpoint_path=ckpt_path,
-                model=model,
                 seqlen=15,
-                dropout_train = True
+                dropout_train = True,
+                world_vector_range=(WORLD_VECTOR_MIN, WORLD_VECTOR_MAX),
+                rotation_range=(ROTATION_MIN, ROTATION_MAX)
             )
             logger.debug('model loaded')
         self.always_refresh = always_refresh
@@ -399,6 +399,7 @@ def configure_logging():
 
 
 def main(args):
+    configure_logging()
     task_name = args['task_name']
     save_dir = args['save_dir']
     num_episodes = args['num_episodes']
@@ -437,7 +438,10 @@ def main(args):
     model_policy = BimanualModelPolicy(model_ckpt_path, frame_interval=frame_interval, always_refresh=True, 
                                        dropout_train=True, right_hand_relative=right_hand_relative, version=version,
                                        absolute=absolute, center_location=center_location)
-    model_policy.set_language_instruction(script_policy_cls.language_instruction)
+    if args['overwrite_language_instruction'] != '':
+        model_policy.set_language_instruction(args['overwrite_language_instruction'])
+    else:
+        model_policy.set_language_instruction(script_policy_cls.language_instruction)
     logger.info(f'language instruction: {script_policy_cls.language_instruction}')
 
     save_path = Path(os.path.join(save_dir, task_name, timestamp))
@@ -628,6 +632,7 @@ if __name__ == '__main__':
     parser.add_argument('--reward_threshold', action='store', type=float, default=0.)
     parser.add_argument('--hard_mode', action='store_true', default=False)
     parser.add_argument('--center_location', action='store_true')
+    parser.add_argument('--overwrite_language_instruction', type=str, default='')
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_with_model.py --model_ckpt_path /home/users/ghc/zzy/open_x_embodiment-main/rt_1_x_jax_bimanual/2024-05-16_15-41-55/checkpoint_5800 --always_refresh True --absolute True --num_episodes 10
