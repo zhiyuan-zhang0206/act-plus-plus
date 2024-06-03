@@ -20,23 +20,55 @@ from matplotlib import pyplot as plt
 from tqdm import trange
 from loguru import logger
 
+class ReplayPolicy:
+    episode_index: int = 0
+    def __init__(self, inject_noise:bool=False, replay_path:Path=None):
+        logger.info(f'Replay path: {replay_path}')
+        self.inject_noise = inject_noise
+        self.replay_path = Path(replay_path)
+        paths = sorted([path.as_posix() for path in self.replay_path.glob('*.hdf5')])
+        self.num_episodes = len(paths)
+        path = paths[self.episode_index]
+        with h5py.File(path, 'r') as root:
+            language_instruction = root.attrs['language_instruction']
+            # left_pose = root['/observations/left_pose'][()]
+            # right_pose = root['/observations/right_pose'][()]
+            qpos = root['/observations/qpos'][()]
+            # random_values = {}
+
+            # for key, dataset in root['random_values'].items():
+            #     random_values[key] = dataset[()]
+        self.episode_len = len(qpos)
+        self.language_instruction = language_instruction
+        self.index = 0
+        self.qpos = qpos
+        self.random_values = 0
+
+    def generate_trajectory(self, ts, hard_mode:bool=False):
+        pass
+
+    def __call__(self, ts):
+        result = self.qpos[self.index]
+        self.index += 1
+        return result
+
 def assemble_image_for_oncreen_render(ts):
     image_left = ts.observation['images']['left_angle']
     image_right = ts.observation['images']['right_angle']
     image = np.concatenate([image_left, image_right], axis=1)
     return image
+timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 def configure_logging():
     # add logger, save logs next to the dir "logs" next to this file, with file name as timestamp
     log_dir = Path(__file__).parent / 'logs'
     log_dir.mkdir(exist_ok=True)
-    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     log_file = log_dir / f'{timestamp}.log'
     logger.add(log_file.as_posix())
-
 task_name_to_script_policy_cls = {
     'stir': StirPolicy,
     'openlid': OpenLidPolicy,
-    'transfercube': TransferCubePolicy
+    'transfercube': TransferCubePolicy,
+    'replay': ReplayPolicy
 }
 def make_action_q(observation):
     action_q = observation['qpos'].copy()
@@ -77,7 +109,6 @@ def main(args):
     if task_name not in task_name_to_script_policy_cls:
         raise ValueError(f'Unsupported task name: {task_name}')
     policy_cls = task_name_to_script_policy_cls[task_name]
-    
     logger.info(f'Policy class: {policy_cls.__name__}')
 
     dataset_path = Path(os.path.join(dataset_dir, task_name))
@@ -87,6 +118,10 @@ def main(args):
     while episode_idx < num_episodes:
         logger.info(f'Episode: {episode_idx+1}/{num_episodes}')
 
+        if args['replay_path'] is not None:
+            replay_policy = ReplayPolicy(inject_noise=False, replay_path=Path(args['replay_path']))
+            num_episodes = replay_policy.num_episodes
+            episode_len = replay_policy.episode_len
         script_policy = policy_cls(inject_noise)
         
         env_ee = make_ee_sim_env(task_name)
@@ -110,7 +145,10 @@ def main(args):
                 if onscreen_render:
                     plt_img.set_data(assemble_image_for_oncreen_render(ts_q))
                     plt.pause(0.0001)
-                action_ee = script_policy(ts_ee)
+                try:
+                    action_ee = script_policy(ts_ee)
+                except:
+                    pass
                 ts_ee = env_ee.step(action_ee)
                 episode_ee.append(ts_ee)
                 
@@ -126,6 +164,8 @@ def main(args):
                     env_q.task.set_render_state(False)
                     
                 action_q = make_action_q(ts_ee.observation)
+                if args['replay_path'] is not None:
+                    action_q = replay_policy(ts_ee)
                 ts_q = env_q.step(action_q)
                 episode_q.append(ts_q)
                 progress_bar.set_postfix({'reward': ts_q.reward})
@@ -207,9 +247,15 @@ def main(args):
             logger.critical('Large diff in location!')
 
         # HDF5
-        data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
-        data_path.parent.mkdir(parents=True, exist_ok=True)
-        data_path = data_path.as_posix()
+        if args['replay_path'] is not None:
+            save_dir = '/home/users/ghc/zzy/act-plus-plus/evaluation_data'
+            data_path = Path(os.path.join(save_dir, task_name, timestamp, f'episode_{episode_idx:04d}'))
+            data_path.parent.mkdir(parents=True, exist_ok=True)
+            data_path = data_path.as_posix()
+        else:
+            data_path = dataset_path / f'episode_{episode_idx + start_index:04d}'
+            data_path.parent.mkdir(parents=True, exist_ok=True)
+            data_path = data_path.as_posix()
         with h5py.File(data_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
             if hasattr(policy_cls, 'language_instruction'):
@@ -248,6 +294,7 @@ if __name__ == '__main__':
     parser.add_argument('--render_interval', action='store', type=int, help='render_interval', required=False, default=10)
     parser.add_argument('--hard_mode', action='store_true')
     parser.add_argument('--final_reward_threshold', action='store', type=float, help='final_reward_threshold', required=False, default=0.1)
+    parser.add_argument('--replay_path', action='store', type=str, help='replay_path', required=False, default=None)
     main(vars(parser.parse_args()))
 
 # python record_sim_episodes_optimized.py --task_name stir --dataset_dir generated_data/stir --onscreen_render

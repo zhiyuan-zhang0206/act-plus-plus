@@ -1,0 +1,3 @@
+python record_sim_episodes_optimized.py --replay_path /home/users/ghc/zzy/act-plus-plus/evaluation_data/transfercube/2024-05-23_20-41-59 --task_name transfercube
+# python record_sim_episodes_optimized.py --replay_path /home/users/ghc/zzy/act-plus-plus/evaluation_data/stir/2024-05-23_20-41-35 --task_name stir
+# python record_sim_episodes_optimized.py --replay_path /home/users/ghc/zzy/act-plus-plus/evaluation_data/openlid/2024-05-23_20-41-48 --task_name openlid
